@@ -1,5 +1,5 @@
 import { initializeApp } from "https://gstatic.com";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, onAuthStateChanged } from "https://gstatic.com";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, onAuthStateChanged, signOut } from "https://gstatic.com";
 import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, onSnapshot } from "https://gstatic.com";
 
 const logo = document.getElementById('logo');
@@ -99,7 +99,7 @@ function playSound() {
   });
 }
 
-// 5. Firebase Auth & Online Players
+// 5. Firebase Auth, Logout & Online Players
 const app = initializeApp({
   apiKey: "AIzaSyBceBIsTrGK6BRr5um9Sxj1BIEAgdZnKJQ",
   authDomain: "://firebaseapp.com",
@@ -128,6 +128,15 @@ onAuthStateChanged(auth, (user) => {
     heartbeat = setInterval(ping, 20000);
   }
 });
+
+document.getElementById('logout-btn').onclick = async () => {
+  clearInterval(heartbeat);
+  if (currentUid) {
+    try { await deleteDoc(doc(db, "online", currentUid)); } catch (e) {}
+  }
+  await signOut(auth);
+  location.reload();
+};
 
 window.addEventListener('beforeunload', () => {
   if (currentUid) deleteDoc(doc(db, "online", currentUid));
