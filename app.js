@@ -1,3 +1,4 @@
+document.getElementById('debug').textContent = 'app.js loaded OK!';
 import { initializeApp } from "https://gstatic.com";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, onAuthStateChanged, signOut } from "https://gstatic.com";
 import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, onSnapshot } from "https://gstatic.com";
