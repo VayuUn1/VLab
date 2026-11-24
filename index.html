@@ -10,7 +10,7 @@
     body {
       background: #fff; height: 100vh; display: flex; flex-direction: column;
       justify-content: center; align-items: center; overflow: hidden;
-      font-family: 'Fredoka', sans-serif; touch-action: none;
+      font-family: 'Fredoka', sans-serif; touch-action: manipulation;
       transition: background-color 1.25s cubic-bezier(0.22, 1, 0.36, 1);
     }
     body.entering { background: #050508; }
@@ -148,13 +148,13 @@
       regModal.classList.remove('open'); logModal.classList.remove('open'); onlineModal.classList.remove('open');
     });
 
-    function checkTouch(e) {
-      if (isEntering || document.querySelector('.modal-backdrop.open')) return;
-      if (!e.touches || !e.touches.length) { logo.classList.remove('active'); return; }
-      const t = e.touches[0];
-      const el = document.elementFromPoint(t.clientX, t.clientY);
-      logo.classList.toggle('active', el === logo || logo.contains(el));
-    }
+     function checkTouch(e) {
+   if (isEntering || document.querySelector('.modal-backdrop.open')) return;
+   if (!e.touches || !e.touches.length) { logo.classList.remove('active'); return; }
+   const t = e.touches.item(0);
+   const el = document.elementFromPoint(t.clientX, t.clientY);
+   logo.classList.toggle('active', el === logo || logo.contains(el));
+ }
     window.addEventListener('touchstart', checkTouch, { passive: true });
     window.addEventListener('touchmove', checkTouch, { passive: true });
     window.addEventListener('touchend', () => logo.classList.remove('active'));
