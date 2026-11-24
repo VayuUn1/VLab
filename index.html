@@ -133,16 +133,13 @@
       </form>
     </div>
   </div>
-  <script type="module">
-    import { initializeApp } from "https://gstatic.com";
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, onAuthStateChanged } from "https://gstatic.com";
-    import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, onSnapshot } from "https://gstatic.com";
-
+  <script>
     const logo = document.getElementById('logo');
     const regModal = document.getElementById('register-modal');
     const logModal = document.getElementById('login-modal');
     const onlineModal = document.getElementById('online-modal');
-    let audioCtx = null, isEntering = false, isAuth = false, downOnLogo = false, startX = 0, startY = 0;
+    let audioCtx = null, isEntering = false, downOnLogo = false, startX = 0, startY = 0;
+    window.vlabAuth = false;
 
     document.getElementById('open-register').onclick = () => { document.getElementById('reg-error').textContent = ''; regModal.classList.add('open'); };
     document.getElementById('open-login').onclick = () => { document.getElementById('login-error').textContent = ''; logModal.classList.add('open'); };
@@ -167,7 +164,7 @@
       if (!downOnLogo || isEntering) return;
       downOnLogo = false;
       if (Math.hypot(e.clientX - startX, e.clientY - startY) < 12 && document.elementFromPoint(e.clientX, e.clientY) === logo) {
-        if (!isAuth) { logo.classList.remove('shake'); void logo.offsetWidth; logo.classList.add('shake'); return; }
+        if (!window.vlabAuth) { logo.classList.remove('shake'); void logo.offsetWidth; logo.classList.add('shake'); return; }
         isEntering = true; logo.classList.remove('active'); playSound(); document.body.classList.add('entering');
       }
     };
@@ -191,6 +188,12 @@
         o.connect(g); g.connect(audioCtx.destination); g.connect(delay); o.start(t); o.stop(t + 0.48);
       });
     }
+  </script>
+
+  <script type="module">
+    import { initializeApp } from "https://gstatic.com";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, onAuthStateChanged } from "https://gstatic.com";
+    import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, onSnapshot } from "https://gstatic.com";
 
     const app = initializeApp({
       apiKey: "AIzaSyBceBIsTrGK6BRr5um9Sxj1BIEAgdZnKJQ",
@@ -200,16 +203,16 @@
       messagingSenderId: "942029676825",
       appId: "1:942029676825:web:77cf57b966caa2d6822588"
     });
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    const auth = getAuth(app), db = getFirestore(app);
     let heartbeat = null, currentUid = null, latestDocs = [];
 
     onAuthStateChanged(auth, (user) => {
       clearInterval(heartbeat);
       if (user) {
-        isAuth = true; currentUid = user.uid;
+        window.vlabAuth = true; currentUid = user.uid;
         document.body.classList.add('authenticated');
-        regModal.classList.remove('open'); logModal.classList.remove('open');
+        document.getElementById('register-modal').classList.remove('open');
+        document.getElementById('login-modal').classList.remove('open');
         const ping = () => setDoc(doc(db, "online", user.uid), { name: user.displayName || "Player", lastSeen: Date.now() });
         ping(); heartbeat = setInterval(ping, 20000);
       }
@@ -230,9 +233,7 @@
 
     document.getElementById('register-form').onsubmit = async (e) => {
       e.preventDefault();
-      const email = document.getElementById('reg-email').value.trim();
-      const name = document.getElementById('reg-name').value.trim();
-      const pass = document.getElementById('reg-pass').value;
+      const email = document.getElementById('reg-email').value.trim(), name = document.getElementById('reg-name').value.trim(), pass = document.getElementById('reg-pass').value;
       const err = document.getElementById('reg-error'), btn = document.getElementById('reg-submit');
       if (pass !== document.getElementById('reg-confirm').value) { err.textContent = 'Passwords do not match!'; return; }
       btn.disabled = true; err.textContent = 'Checking name...';
@@ -247,16 +248,12 @@
 
     document.getElementById('login-form').onsubmit = async (e) => {
       e.preventDefault();
-      const name = document.getElementById('login-name').value.trim();
-      const email = document.getElementById('login-email').value.trim();
-      const pass = document.getElementById('login-pass').value;
+      const name = document.getElementById('login-name').value.trim(), email = document.getElementById('login-email').value.trim(), pass = document.getElementById('login-pass').value;
       const err = document.getElementById('login-error'), btn = document.getElementById('login-submit');
       btn.disabled = true; err.textContent = 'Logging in...';
       try {
         const cred = await signInWithEmailAndPassword(auth, email, pass);
-        if ((cred.user.displayName || '').toLowerCase() !== name.toLowerCase()) {
-          err.textContent = 'Name does not match this account!'; btn.disabled = false;
-        }
+        if ((cred.user.displayName || '').toLowerCase() !== name.toLowerCase()) { err.textContent = 'Name does not match this account!'; btn.disabled = false; }
       } catch (ex) { err.textContent = 'Invalid name, email, or password!'; btn.disabled = false; }
     };
   </script>
