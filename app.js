@@ -11,33 +11,16 @@ const onlineModal = document.getElementById('online-modal');
 let audioCtx = null, isEntering = false, isAuth = false;
 let downOnLogo = false, startX = 0, startY = 0;
 
-// 1. Buttons & Modals
-document.getElementById('open-register').onclick = () => {
-  document.getElementById('reg-error').textContent = '';
-  regModal.classList.add('open');
-};
-document.getElementById('open-login').onclick = () => {
-  document.getElementById('login-error').textContent = '';
-  logModal.classList.add('open');
-};
-document.getElementById('online-toggle-btn').onclick = () => {
-  onlineModal.classList.add('open');
-};
+document.getElementById('open-register').onclick = () => { document.getElementById('reg-error').textContent = ''; regModal.classList.add('open'); };
+document.getElementById('open-login').onclick = () => { document.getElementById('login-error').textContent = ''; logModal.classList.add('open'); };
+document.getElementById('online-toggle-btn').onclick = () => { onlineModal.classList.add('open'); };
 document.querySelectorAll('[data-close]').forEach(btn => {
-  btn.onclick = () => {
-    regModal.classList.remove('open');
-    logModal.classList.remove('open');
-    onlineModal.classList.remove('open');
-  };
+  btn.onclick = () => { regModal.classList.remove('open'); logModal.classList.remove('open'); onlineModal.classList.remove('open'); };
 });
 
-// 2. Real-time Mobile Touch Drag Scale on VLAB
 function checkTouch(e) {
   if (isEntering || document.querySelector('.modal-backdrop.open')) return;
-  if (!e.touches || !e.touches.length) {
-    logo.classList.remove('active');
-    return;
-  }
+  if (!e.touches || !e.touches.length) { logo.classList.remove('active'); return; }
   const t = e.touches.item(0);
   const el = document.elementFromPoint(t.clientX, t.clientY);
   logo.classList.toggle('active', el === logo || logo.contains(el));
@@ -46,33 +29,15 @@ window.addEventListener('touchstart', checkTouch, { passive: true });
 window.addEventListener('touchmove', checkTouch, { passive: true });
 window.addEventListener('touchend', () => logo.classList.remove('active'));
 
-// 3. Single-Tap Detector + Inverted Jump
-logo.onpointerdown = (e) => {
-  if (!isEntering) {
-    downOnLogo = true;
-    startX = e.clientX;
-    startY = e.clientY;
-  }
-};
+logo.onpointerdown = (e) => { if (!isEntering) { downOnLogo = true; startX = e.clientX; startY = e.clientY; } };
 window.onpointerup = (e) => {
   if (!downOnLogo || isEntering) return;
   downOnLogo = false;
-  const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
-  if (dist < 12 && document.elementFromPoint(e.clientX, e.clientY) === logo) {
-    if (!isAuth) {
-      logo.classList.remove('shake');
-      void logo.offsetWidth;
-      logo.classList.add('shake');
-      return;
-    }
-    isEntering = true;
-    logo.classList.remove('active');
-    playSound();
-    document.body.classList.add('entering');
+  if (Math.hypot(e.clientX - startX, e.clientY - startY) < 12 && document.elementFromPoint(e.clientX, e.clientY) === logo) {
+    if (!isAuth) { logo.classList.remove('shake'); void logo.offsetWidth; logo.classList.add('shake'); return; }
+    isEntering = true; logo.classList.remove('active'); playSound(); document.body.classList.add('entering');
   }
 };
-
-// 4. Glassy Bubble Chime Sound
 function playSound() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -100,7 +65,6 @@ function playSound() {
   });
 }
 
-// 5. Firebase Auth, Logout & Online Players
 const app = initializeApp({
   apiKey: "AIzaSyBceBIsTrGK6BRr5um9Sxj1BIEAgdZnKJQ",
   authDomain: "://firebaseapp.com",
