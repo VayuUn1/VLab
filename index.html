@@ -83,21 +83,21 @@
   <div class="modal-backdrop" id="online-modal"><div class="modal-card"><button class="close-btn" data-close>&times;</button><h2>Online (<span id="modal-online-count">0</span>)</h2><div id="online-list"><p style="text-align:center;color:#666;">No players online</p></div></div></div>
 
   <div class="modal-backdrop" id="register-modal"><div class="modal-card"><button class="close-btn" data-close>&times;</button><h2>Register</h2>
-    <form id="register-form">
-      <div class="field"><label>Email</label><input type="email" id="reg-email" required /></div>
-      <div class="field"><label>Name</label><input type="text" id="reg-name" required /></div>
-      <div class="field"><label>Password</label><input type="password" id="reg-pass" minlength="6" required /></div>
-      <div class="field"><label>Confirm Password</label><input type="password" id="reg-confirm" minlength="6" required /></div>
+    <form id="register-form" autocomplete="on">
+      <div class="field"><label>Email</label><input type="email" id="reg-email" name="email" autocomplete="email" required /></div>
+      <div class="field"><label>Name</label><input type="text" id="reg-name" name="username" autocomplete="username" required /></div>
+      <div class="field"><label>Password</label><input type="password" id="reg-pass" name="password" autocomplete="new-password" minlength="6" required /></div>
+      <div class="field"><label>Confirm Password</label><input type="password" id="reg-confirm" name="confirm-password" autocomplete="new-password" minlength="6" required /></div>
       <div class="error-msg" id="reg-error"></div>
       <button type="submit" class="yellow-btn submit-btn" id="reg-submit">Create Account</button>
     </form>
   </div></div>
 
   <div class="modal-backdrop" id="login-modal"><div class="modal-card"><button class="close-btn" data-close>&times;</button><h2>Login</h2>
-    <form id="login-form">
-      <div class="field"><label>Name</label><input type="text" id="login-name" required /></div>
-      <div class="field"><label>Email</label><input type="email" id="login-email" required /></div>
-      <div class="field"><label>Password</label><input type="password" id="login-pass" required /></div>
+    <form id="login-form" autocomplete="on">
+      <div class="field"><label>Name</label><input type="text" id="login-name" name="username" autocomplete="username" required /></div>
+      <div class="field"><label>Email</label><input type="email" id="login-email" name="email" autocomplete="email" required /></div>
+      <div class="field"><label>Password</label><input type="password" id="login-pass" name="password" autocomplete="current-password" required /></div>
       <div class="error-msg" id="login-error"></div>
       <button type="submit" class="yellow-btn submit-btn" id="login-submit">Enter VLAB</button>
     </form>
