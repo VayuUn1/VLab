@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VLAB</title>
+  <link href="https://googleapis.com" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+      background: #fff; height: 100vh; display: flex; flex-direction: column;
+      justify-content: center; align-items: center; overflow: hidden;
+      font-family: 'Fredoka', sans-serif; touch-action: none;
+      transition: background-color 1.25s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    body.entering { background: #050508; }
+    body.entering .exit-wrapper { animation: invertedJump 1.15s cubic-bezier(0.35, 0, 0.25, 1) forwards; pointer-events: none; }
+    @keyframes invertedJump {
+      0% { transform: translateY(0) scale(1, 1); opacity: 1; }
+      22% { transform: translateY(38px) scale(1.08, 0.9); opacity: 1; }
+      32% { transform: translateY(28px) scale(0.96, 1.05); opacity: 1; }
+      100% { transform: translateY(-85vh) scale(0.95, 1.04); opacity: 0; }
+    }
+    .drone-wrapper { animation: droneFloat 3.6s ease-in-out infinite; }
+    @keyframes droneFloat {
+      0%, 100% { transform: translateY(0) rotate(-1deg); }
+      50% { transform: translateY(-18px) rotate(1.5deg); }
+    }
+    .vlab-logo {
+      font-size: clamp(5rem, 18vw, 11rem); font-weight: 700; letter-spacing: 0.04em;
+      color: #18181b; user-select: none; display: inline-block; cursor: not-allowed;
+      transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+      text-shadow: 4px 4px 0 #ff4d6d, 8px 8px 0 #ffbe0b, 12px 12px 0 #3a86ff, 16px 16px 24px rgba(0,0,0,0.12);
+    }
+    body.authenticated .vlab-logo { cursor: pointer; }
+    @media (hover: hover) { .vlab-logo:hover { transform: scale(1.15); } }
+    .vlab-logo.active { transform: scale(1.15); }
+    .vlab-logo.shake { animation: lockShake 0.35s ease; }
+    @keyframes lockShake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-10px); }
+      75% { transform: translateX(10px); }
+    }
+    .auth-buttons {
+      margin-top: 36px; display: flex; gap: 18px; z-index: 10;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+    body.authenticated .auth-buttons, body.entering .auth-buttons {
+      opacity: 0; pointer-events: none; transform: translateY(10px);
+    }
+    .yellow-btn {
+      font-family: 'Fredoka', sans-serif; font-size: 1.2rem; font-weight: 700;
+      color: #18181b; background: #ffd60a; border: 3px solid #18181b;
+      border-radius: 16px; padding: 12px 28px; cursor: pointer;
+      box-shadow: 0 6px 0 #d99b00, 0 10px 18px rgba(0,0,0,0.12);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .yellow-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #d99b00; }
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none;
+      justify-content: center; align-items: center; padding: 20px; z-index: 50; touch-action: auto;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal-card {
+      background: #fff; border: 3px solid #18181b; border-radius: 24px;
+      box-shadow: 8px 8px 0 #ffbe0b; width: 100%; max-width: 380px; padding: 28px 24px; position: relative;
+    }
+    .modal-card h2 { font-size: 1.8rem; margin-bottom: 16px; text-align: center; }
+    .close-btn { position: absolute; top: 14px; right: 16px; background: none; border: none; font-size: 1.5rem; font-weight: 700; cursor: pointer; }
+    .field { margin-bottom: 12px; }
+    .field label { display: block; font-size: 0.95rem; margin-bottom: 4px; }
+    .field input { width: 100%; padding: 10px 14px; font-family: 'Fredoka', sans-serif; font-size: 1rem; border: 2.5px solid #18181b; border-radius: 12px; }
+    .error-msg { color: #e63946; font-size: 0.9rem; min-height: 20px; margin-bottom: 10px; text-align: center; }
+    .submit-btn { width: 100%; }
+  </style>
+</head>
+<body>
+
+  <div class="exit-wrapper"><div class="drone-wrapper"><h1 class="vlab-logo" id="logo">VLAB</h1></div></div>
+
+  <div class="auth-buttons">
+    <button class="yellow-btn" id="open-login">Login</button>
+    <button class="yellow-btn" id="open-register">Register</button>
+  </div>
+
+  <div class="modal-backdrop" id="register-modal">
+    <div class="modal-card">
+      <button class="close-btn" data-close>&times;</button>
+      <h2>Register</h2>
+      <form id="register-form">
+        <div class="field"><label>Email</label><input type="email" id="reg-email" required /></div>
+        <div class="field"><label>Name</label><input type="text" id="reg-name" required /></div>
+        <div class="field"><label>Password</label><input type="password" id="reg-pass" required /></div>
+        <div class="field"><label>Confirm Password</label><input type="password" id="reg-confirm" required /></div>
+        <div class="error-msg" id="reg-error"></div>
+        <button type="submit" class="yellow-btn submit-btn">Create Account</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="login-modal">
+    <div class="modal-card">
+      <button class="close-btn" data-close>&times;</button>
+      <h2>Login</h2>
+      <form id="login-form">
+        <div class="field"><label>Name</label><input type="text" id="login-name" required /></div>
+        <div class="field"><label>Email</label><input type="email" id="login-email" required /></div>
+        <div class="field"><label>Password</label><input type="password" id="login-pass" required /></div>
+        <div class="error-msg" id="login-error"></div>
+        <button type="submit" class="yellow-btn submit-btn">Enter VLAB</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const logo = document.getElementById('logo');
+    const regModal = document.getElementById('register-modal');
+    const logModal = document.getElementById('login-modal');
+    let audioCtx = null, isEntering = false, isAuth = false, downOnLogo = false, startX = 0, startY = 0;
+
+    const reserved = ['admin', 'vlab', 'neal', 'mod', 'staff'];
+    const getUsers = () => JSON.parse(localStorage.getItem('vlab_users') || '[]');
+    const unlock = () => {
+      isAuth = true;
+      document.body.classList.add('authenticated');
+      regModal.classList.remove('open');
+      logModal.classList.remove('open');
+    };
+
+    document.getElementById('open-register').onclick = () => { document.getElementById('reg-error').textContent = ''; regModal.classList.add('open'); };
+    document.getElementById('open-login').onclick = () => { document.getElementById('login-error').textContent = ''; logModal.classList.add('open'); };
+    document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => { regModal.classList.remove('open'); logModal.classList.remove('open'); });
+
+    document.getElementById('register-form').onsubmit = (e) => {
+      e.preventDefault();
+      const email = document.getElementById('reg-email').value.trim();
+      const name = document.getElementById('reg-name').value.trim();
+      const pass = document.getElementById('reg-pass').value;
+      const confirm = document.getElementById('reg-confirm').value;
+      const err = document.getElementById('reg-error');
+      const users = getUsers();
+      if (reserved.includes(name.toLowerCase()) || users.some(u => u.name.toLowerCase() === name.toLowerCase())) {
+        err.textContent = 'That name is already taken!'; return;
+      }
+      if (pass !== confirm) { err.textContent = 'Passwords do not match!'; return; }
+      users.push({ email, name, pass });
+      localStorage.setItem('vlab_users', JSON.stringify(users));
+      unlock();
+    };
+
+    document.getElementById('login-form').onsubmit = (e) => {
+      e.preventDefault();
+      const name = document.getElementById('login-name').value.trim();
+      const email = document.getElementById('login-email').value.trim();
+      const pass = document.getElementById('login-pass').value;
+      const match = getUsers().find(u => u.name.toLowerCase() === name.toLowerCase() && u.email.toLowerCase() === email.toLowerCase() && u.pass === pass);
+      if (!match) { document.getElementById('login-error').textContent = 'Invalid name, email, or password!'; return; }
+      unlock();
+    };
+
+    function checkTouch(e) {
+      if (isEntering || regModal.classList.contains('open') || logModal.classList.contains('open')) return;
+      if (!e.touches || !e.touches.length) { logo.classList.remove('active'); return; }
+      const t = e.touches[0];
+      const el = document.elementFromPoint(t.clientX, t.clientY);
+      logo.classList.toggle('active', el === logo || logo.contains(el));
+    }
+    window.addEventListener('touchstart', checkTouch, { passive: true });
+    window.addEventListener('touchmove', checkTouch, { passive: true });
+    window.addEventListener('touchend', () => logo.classList.remove('active'));
+
+    logo.onpointerdown = (e) => { if (!isEntering) { downOnLogo = true; startX = e.clientX; startY = e.clientY; } };
+    window.onpointerup = (e) => {
+      if (!downOnLogo || isEntering) return;
+      downOnLogo = false;
+      if (Math.hypot(e.clientX - startX, e.clientY - startY) < 12 && document.elementFromPoint(e.clientX, e.clientY) === logo) {
+        if (!isAuth) { logo.classList.remove('shake'); void logo.offsetWidth; logo.classList.add('shake'); return; }
+        isEntering = true; logo.classList.remove('active'); playSound(); document.body.classList.add('entering');
+      }
+    };
+
+    function playSound() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const now = audioCtx.currentTime;
+      const delay = audioCtx.createDelay(); delay.delayTime.value = 0.14;
+      const fb = audioCtx.createGain(); fb.gain.value = 0.28;
+      const wet = audioCtx.createGain(); wet.gain.value = 0.35;
+      delay.connect(fb); fb.connect(delay); delay.connect(wet); wet.connect(audioCtx.destination);
+
+      const pop = audioCtx.createOscillator(), popG = audioCtx.createGain();
+      pop.frequency.setValueAtTime(320, now); pop.frequency.exponentialRampToValueAtTime(880, now + 0.065);
+      popG.gain.setValueAtTime(0.001, now); popG.gain.exponentialRampToValueAtTime(0.22, now + 0.01); popG.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+      pop.connect(popG); popG.connect(audioCtx.destination); pop.start(now); pop.stop(now + 0.09);
+
+      [1046.5, 1567.98].forEach((f, i) => {
+        const o = audioCtx.createOscillator(), g = audioCtx.createGain(), t = now + 0.045 + i * 0.075;
+        o.frequency.setValueAtTime(f, t);
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.14, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.45);
+        o.connect(g); g.connect(audioCtx.destination); g.connect(delay); o.start(t); o.stop(t + 0.48);
+      });
+    }
+  </script>
+</body>
+</html>
