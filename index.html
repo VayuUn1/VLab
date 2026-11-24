@@ -57,6 +57,17 @@
     }
     .yellow-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #d99b00; }
     .yellow-btn:disabled { opacity: 0.6; cursor: wait; }
+    #online-toggle-btn {
+      position: fixed; top: 18px; right: 18px; z-index: 40;
+      font-family: 'Fredoka', sans-serif; font-size: 1rem; font-weight: 700;
+      color: #18181b; background: #ffd60a; border: 3px solid #18181b;
+      border-radius: 999px; padding: 8px 18px; cursor: pointer;
+      box-shadow: 0 4px 0 #d99b00, 0 6px 14px rgba(0,0,0,0.12);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .live-dot { width: 10px; height: 10px; background: #22c55e; border-radius: 50%; border: 2px solid #18181b; }
+    #online-list { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+    .online-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #f4f4f5; border: 2px solid #18181b; border-radius: 12px; font-weight: 700; }
     .modal-backdrop {
       position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none;
       justify-content: center; align-items: center; padding: 20px; z-index: 50; touch-action: auto;
@@ -77,11 +88,21 @@
 </head>
 <body>
 
+  <button id="online-toggle-btn"><span class="live-dot"></span> Online (<span id="online-count">0</span>)</button>
+
   <div class="exit-wrapper"><div class="drone-wrapper"><h1 class="vlab-logo" id="logo">VLAB</h1></div></div>
 
   <div class="auth-buttons">
     <button class="yellow-btn" id="open-login">Login</button>
     <button class="yellow-btn" id="open-register">Register</button>
+  </div>
+
+  <div class="modal-backdrop" id="online-modal">
+    <div class="modal-card">
+      <button class="close-btn" data-close>&times;</button>
+      <h2>Online (<span id="modal-online-count">0</span>)</h2>
+      <div id="online-list"><p style="text-align:center;color:#666;">No players online right now</p></div>
+    </div>
   </div>
 
   <div class="modal-backdrop" id="register-modal">
@@ -112,96 +133,28 @@
       </form>
     </div>
   </div>
-
   <script type="module">
     import { initializeApp } from "https://gstatic.com";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, onAuthStateChanged } from "https://gstatic.com";
-    import { getFirestore, doc, getDoc, setDoc } from "https://gstatic.com";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyBceBIsTrGK6BRr5um9Sxj1BIEAgdZnKJQ",
-      authDomain: "://firebaseapp.com",
-      projectId: "vlab-75355",
-      storageBucket: "vlab-75355.firebasestorage.app",
-      messagingSenderId: "942029676825",
-      appId: "1:942029676825:web:77cf57b966caa2d6822588"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, onSnapshot } from "https://gstatic.com";
 
     const logo = document.getElementById('logo');
     const regModal = document.getElementById('register-modal');
     const logModal = document.getElementById('login-modal');
+    const onlineModal = document.getElementById('online-modal');
     let audioCtx = null, isEntering = false, isAuth = false, downOnLogo = false, startX = 0, startY = 0;
-
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        isAuth = true;
-        document.body.classList.add('authenticated');
-        regModal.classList.remove('open');
-        logModal.classList.remove('open');
-      }
-    });
 
     document.getElementById('open-register').onclick = () => { document.getElementById('reg-error').textContent = ''; regModal.classList.add('open'); };
     document.getElementById('open-login').onclick = () => { document.getElementById('login-error').textContent = ''; logModal.classList.add('open'); };
-    document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => { regModal.classList.remove('open'); logModal.classList.remove('open'); });
-
-    document.getElementById('register-form').onsubmit = async (e) => {
-      e.preventDefault();
-      const email = document.getElementById('reg-email').value.trim();
-      const name = document.getElementById('reg-name').value.trim();
-      const pass = document.getElementById('reg-pass').value;
-      const confirm = document.getElementById('reg-confirm').value;
-      const err = document.getElementById('reg-error');
-      const btn = document.getElementById('reg-submit');
-
-      if (pass !== confirm) { err.textContent = 'Passwords do not match!'; return; }
-      btn.disabled = true; err.textContent = 'Checking name...';
-
-      try {
-        const nameKey = name.toLowerCase();
-        const nameSnap = await getDoc(doc(db, "usernames", nameKey));
-        if (nameSnap.exists()) {
-          err.textContent = 'That name is already taken!';
-          btn.disabled = false; return;
-        }
-        const cred = await createUserWithEmailAndPassword(auth, email, pass);
-        await updateProfile(cred.user, { displayName: name });
-        await setDoc(doc(db, "usernames", nameKey), { uid: cred.user.uid, name: name });
-      } catch (error) {
-        err.textContent = error.message.replace('Firebase: ', '');
-        btn.disabled = false;
-      }
-    };
-
-    document.getElementById('login-form').onsubmit = async (e) => {
-      e.preventDefault();
-      const name = document.getElementById('login-name').value.trim();
-      const email = document.getElementById('login-email').value.trim();
-      const pass = document.getElementById('login-pass').value;
-      const err = document.getElementById('login-error');
-      const btn = document.getElementById('login-submit');
-
-      btn.disabled = true; err.textContent = 'Logging in...';
-      try {
-        const cred = await signInWithEmailAndPassword(auth, email, pass);
-        if ((cred.user.displayName || '').toLowerCase() !== name.toLowerCase()) {
-          err.textContent = 'Name does not match this account!';
-          btn.disabled = false; return;
-        }
-      } catch (error) {
-        err.textContent = 'Invalid name, email, or password!';
-        btn.disabled = false;
-      }
-    };
+    document.getElementById('online-toggle-btn').onclick = () => onlineModal.classList.add('open');
+    document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => {
+      regModal.classList.remove('open'); logModal.classList.remove('open'); onlineModal.classList.remove('open');
+    });
 
     function checkTouch(e) {
-      if (isEntering || regModal.classList.contains('open') || logModal.classList.contains('open')) return;
+      if (isEntering || document.querySelector('.modal-backdrop.open')) return;
       if (!e.touches || !e.touches.length) { logo.classList.remove('active'); return; }
-      const t = e.touches[0];
+      const t = e.touches;
       const el = document.elementFromPoint(t.clientX, t.clientY);
       logo.classList.toggle('active', el === logo || logo.contains(el));
     }
@@ -227,12 +180,10 @@
       const fb = audioCtx.createGain(); fb.gain.value = 0.28;
       const wet = audioCtx.createGain(); wet.gain.value = 0.35;
       delay.connect(fb); fb.connect(delay); delay.connect(wet); wet.connect(audioCtx.destination);
-
       const pop = audioCtx.createOscillator(), popG = audioCtx.createGain();
       pop.frequency.setValueAtTime(320, now); pop.frequency.exponentialRampToValueAtTime(880, now + 0.065);
       popG.gain.setValueAtTime(0.001, now); popG.gain.exponentialRampToValueAtTime(0.22, now + 0.01); popG.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
       pop.connect(popG); popG.connect(audioCtx.destination); pop.start(now); pop.stop(now + 0.09);
-
       [1046.5, 1567.98].forEach((f, i) => {
         const o = audioCtx.createOscillator(), g = audioCtx.createGain(), t = now + 0.045 + i * 0.075;
         o.frequency.setValueAtTime(f, t);
@@ -240,107 +191,74 @@
         o.connect(g); g.connect(audioCtx.destination); g.connect(delay); o.start(t); o.stop(t + 0.48);
       });
     }
+
+    const app = initializeApp({
+      apiKey: "AIzaSyBceBIsTrGK6BRr5um9Sxj1BIEAgdZnKJQ",
+      authDomain: "://firebaseapp.com",
+      projectId: "vlab-75355",
+      storageBucket: "vlab-75355.firebasestorage.app",
+      messagingSenderId: "942029676825",
+      appId: "1:942029676825:web:77cf57b966caa2d6822588"
+    });
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    let heartbeat = null, currentUid = null, latestDocs = [];
+
+    onAuthStateChanged(auth, (user) => {
+      clearInterval(heartbeat);
+      if (user) {
+        isAuth = true; currentUid = user.uid;
+        document.body.classList.add('authenticated');
+        regModal.classList.remove('open'); logModal.classList.remove('open');
+        const ping = () => setDoc(doc(db, "online", user.uid), { name: user.displayName || "Player", lastSeen: Date.now() });
+        ping(); heartbeat = setInterval(ping, 20000);
+      }
+    });
+
+    window.addEventListener('beforeunload', () => { if (currentUid) deleteDoc(doc(db, "online", currentUid)); });
+
+    function renderOnline() {
+      const active = latestDocs.filter(p => Date.now() - (p.lastSeen || 0) < 45000);
+      document.getElementById('online-count').textContent = active.length;
+      document.getElementById('modal-online-count').textContent = active.length;
+      document.getElementById('online-list').innerHTML = active.length
+        ? active.map(p => `<div class="online-row"><span class="live-dot"></span><span>${p.name.replace(/</g, "&lt;")}</span></div>`).join('')
+        : '<p style="text-align:center;color:#666;">No players online right now</p>';
+    }
+    onSnapshot(collection(db, "online"), (snap) => { latestDocs = snap.docs.map(d => d.data()); renderOnline(); });
+    setInterval(renderOnline, 10000);
+
+    document.getElementById('register-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('reg-email').value.trim();
+      const name = document.getElementById('reg-name').value.trim();
+      const pass = document.getElementById('reg-pass').value;
+      const err = document.getElementById('reg-error'), btn = document.getElementById('reg-submit');
+      if (pass !== document.getElementById('reg-confirm').value) { err.textContent = 'Passwords do not match!'; return; }
+      btn.disabled = true; err.textContent = 'Checking name...';
+      try {
+        const snap = await getDoc(doc(db, "usernames", name.toLowerCase()));
+        if (snap.exists()) { err.textContent = 'That name is already taken!'; btn.disabled = false; return; }
+        const cred = await createUserWithEmailAndPassword(auth, email, pass);
+        await updateProfile(cred.user, { displayName: name });
+        await setDoc(doc(db, "usernames", name.toLowerCase()), { uid: cred.user.uid, name });
+      } catch (ex) { err.textContent = ex.message.replace('Firebase: ', ''); btn.disabled = false; }
+    };
+
+    document.getElementById('login-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('login-name').value.trim();
+      const email = document.getElementById('login-email').value.trim();
+      const pass = document.getElementById('login-pass').value;
+      const err = document.getElementById('login-error'), btn = document.getElementById('login-submit');
+      btn.disabled = true; err.textContent = 'Logging in...';
+      try {
+        const cred = await signInWithEmailAndPassword(auth, email, pass);
+        if ((cred.user.displayName || '').toLowerCase() !== name.toLowerCase()) {
+          err.textContent = 'Name does not match this account!'; btn.disabled = false;
+        }
+      } catch (ex) { err.textContent = 'Invalid name, email, or password!'; btn.disabled = false; }
+    };
   </script>
-  <style>
-  #online-toggle-btn {
-    position: fixed; top: 18px; right: 18px; z-index: 40;
-    font-family: 'Fredoka', sans-serif; font-size: 1rem; font-weight: 700;
-    color: #18181b; background: #ffd60a; border: 3px solid #18181b;
-    border-radius: 999px; padding: 8px 18px; cursor: pointer;
-    box-shadow: 0 4px 0 #d99b00, 0 6px 14px rgba(0,0,0,0.12);
-    display: flex; align-items: center; gap: 8px;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-  }
-  #online-toggle-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #d99b00; }
-  .live-dot { width: 10px; height: 10px; background: #22c55e; border-radius: 50%; border: 2px solid #18181b; }
-  #online-list { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
-  .online-row {
-    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
-    background: #f4f4f5; border: 2px solid #18181b; border-radius: 12px;
-    font-weight: 700; color: #18181b;
-  }
-</style>
-
-<button id="online-toggle-btn"><span class="live-dot"></span> Online (<span id="online-count">0</span>)</button>
-
-<div class="modal-backdrop" id="online-modal">
-  <div class="modal-card">
-    <button class="close-btn" id="close-online">&times;</button>
-    <h2>Online (<span id="modal-online-count">0</span>)</h2>
-    <div id="online-list"><p style="text-align:center;color:#666;">Loading players...</p></div>
-  </div>
-</div>
-
-<script type="module">
-  import { initializeApp, getApps, getApp } from "https://gstatic.com";
-  import { getAuth, onAuthStateChanged } from "https://gstatic.com";
-  import { getFirestore, doc, setDoc, deleteDoc, collection, onSnapshot } from "https://gstatic.com";
-
-  const cfg = {
-    apiKey: "AIzaSyBceBIsTrGK6BRr5um9Sxj1BIEAgdZnKJQ",
-    authDomain: "://firebaseapp.com",
-    projectId: "vlab-75355",
-    storageBucket: "vlab-75355.firebasestorage.app",
-    messagingSenderId: "942029676825",
-    appId: "1:942029676825:web:77cf57b966caa2d6822588"
-  };
-
-  const fbApp = getApps().length ? getApp() : initializeApp(cfg);
-  const auth = getAuth(fbApp);
-  const db = getFirestore(fbApp);
-
-  const onlineModal = document.getElementById('online-modal');
-  const onlineList = document.getElementById('online-list');
-  const countTop = document.getElementById('online-count');
-  const countModal = document.getElementById('modal-online-count');
-
-  document.getElementById('online-toggle-btn').onclick = () => onlineModal.classList.add('open');
-  document.getElementById('close-online').onclick = () => onlineModal.classList.remove('open');
-
-  let heartbeatTimer = null;
-  let currentUid = null;
-
-  // Send live heartbeat every 20s while logged in
-  onAuthStateChanged(auth, (user) => {
-    clearInterval(heartbeatTimer);
-    if (user) {
-      currentUid = user.uid;
-      const ping = () => setDoc(doc(db, "online", user.uid), {
-        name: user.displayName || "Player",
-        lastSeen: Date.now()
-      });
-      ping();
-      heartbeatTimer = setInterval(ping, 20000);
-    }
-  });
-
-  // Remove player immediately when closing tab
-  window.addEventListener('beforeunload', () => {
-    if (currentUid) deleteDoc(doc(db, "online", currentUid));
-  });
-
-  // Live listener for all online players (active within last 45 seconds)
-  let latestDocs = [];
-  function renderOnline() {
-    const now = Date.now();
-    const active = latestDocs.filter(p => now - (p.lastSeen || 0) < 45000);
-    countTop.textContent = active.length;
-    countModal.textContent = active.length;
-
-    if (!active.length) {
-      onlineList.innerHTML = '<p style="text-align:center;color:#666;">No players online right now</p>';
-      return;
-    }
-    onlineList.innerHTML = active.map(p =>
-      `<div class="online-row"><span class="live-dot"></span><span>${p.name.replace(/</g, "&lt;")}</span></div>`
-    ).join('');
-  }
-
-  onSnapshot(collection(db, "online"), (snap) => {
-    latestDocs = snap.docs.map(d => d.data());
-    renderOnline();
-  });
-  setInterval(renderOnline, 10000);
-</script>
 </body>
 </html>
