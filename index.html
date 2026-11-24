@@ -241,5 +241,106 @@
       });
     }
   </script>
+  <style>
+  #online-toggle-btn {
+    position: fixed; top: 18px; right: 18px; z-index: 40;
+    font-family: 'Fredoka', sans-serif; font-size: 1rem; font-weight: 700;
+    color: #18181b; background: #ffd60a; border: 3px solid #18181b;
+    border-radius: 999px; padding: 8px 18px; cursor: pointer;
+    box-shadow: 0 4px 0 #d99b00, 0 6px 14px rgba(0,0,0,0.12);
+    display: flex; align-items: center; gap: 8px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  #online-toggle-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #d99b00; }
+  .live-dot { width: 10px; height: 10px; background: #22c55e; border-radius: 50%; border: 2px solid #18181b; }
+  #online-list { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  .online-row {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    background: #f4f4f5; border: 2px solid #18181b; border-radius: 12px;
+    font-weight: 700; color: #18181b;
+  }
+</style>
+
+<button id="online-toggle-btn"><span class="live-dot"></span> Online (<span id="online-count">0</span>)</button>
+
+<div class="modal-backdrop" id="online-modal">
+  <div class="modal-card">
+    <button class="close-btn" id="close-online">&times;</button>
+    <h2>Online (<span id="modal-online-count">0</span>)</h2>
+    <div id="online-list"><p style="text-align:center;color:#666;">Loading players...</p></div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp, getApps, getApp } from "https://gstatic.com";
+  import { getAuth, onAuthStateChanged } from "https://gstatic.com";
+  import { getFirestore, doc, setDoc, deleteDoc, collection, onSnapshot } from "https://gstatic.com";
+
+  const cfg = {
+    apiKey: "AIzaSyBceBIsTrGK6BRr5um9Sxj1BIEAgdZnKJQ",
+    authDomain: "://firebaseapp.com",
+    projectId: "vlab-75355",
+    storageBucket: "vlab-75355.firebasestorage.app",
+    messagingSenderId: "942029676825",
+    appId: "1:942029676825:web:77cf57b966caa2d6822588"
+  };
+
+  const fbApp = getApps().length ? getApp() : initializeApp(cfg);
+  const auth = getAuth(fbApp);
+  const db = getFirestore(fbApp);
+
+  const onlineModal = document.getElementById('online-modal');
+  const onlineList = document.getElementById('online-list');
+  const countTop = document.getElementById('online-count');
+  const countModal = document.getElementById('modal-online-count');
+
+  document.getElementById('online-toggle-btn').onclick = () => onlineModal.classList.add('open');
+  document.getElementById('close-online').onclick = () => onlineModal.classList.remove('open');
+
+  let heartbeatTimer = null;
+  let currentUid = null;
+
+  // Send live heartbeat every 20s while logged in
+  onAuthStateChanged(auth, (user) => {
+    clearInterval(heartbeatTimer);
+    if (user) {
+      currentUid = user.uid;
+      const ping = () => setDoc(doc(db, "online", user.uid), {
+        name: user.displayName || "Player",
+        lastSeen: Date.now()
+      });
+      ping();
+      heartbeatTimer = setInterval(ping, 20000);
+    }
+  });
+
+  // Remove player immediately when closing tab
+  window.addEventListener('beforeunload', () => {
+    if (currentUid) deleteDoc(doc(db, "online", currentUid));
+  });
+
+  // Live listener for all online players (active within last 45 seconds)
+  let latestDocs = [];
+  function renderOnline() {
+    const now = Date.now();
+    const active = latestDocs.filter(p => now - (p.lastSeen || 0) < 45000);
+    countTop.textContent = active.length;
+    countModal.textContent = active.length;
+
+    if (!active.length) {
+      onlineList.innerHTML = '<p style="text-align:center;color:#666;">No players online right now</p>';
+      return;
+    }
+    onlineList.innerHTML = active.map(p =>
+      `<div class="online-row"><span class="live-dot"></span><span>${p.name.replace(/</g, "&lt;")}</span></div>`
+    ).join('');
+  }
+
+  onSnapshot(collection(db, "online"), (snap) => {
+    latestDocs = snap.docs.map(d => d.data());
+    renderOnline();
+  });
+  setInterval(renderOnline, 10000);
+</script>
 </body>
 </html>
