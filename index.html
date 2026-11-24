@@ -56,6 +56,7 @@
       transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
     .yellow-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #d99b00; }
+    .yellow-btn:disabled { opacity: 0.6; cursor: wait; }
     .modal-backdrop {
       position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none;
       justify-content: center; align-items: center; padding: 20px; z-index: 50; touch-action: auto;
@@ -90,10 +91,10 @@
       <form id="register-form">
         <div class="field"><label>Email</label><input type="email" id="reg-email" required /></div>
         <div class="field"><label>Name</label><input type="text" id="reg-name" required /></div>
-        <div class="field"><label>Password</label><input type="password" id="reg-pass" required /></div>
-        <div class="field"><label>Confirm Password</label><input type="password" id="reg-confirm" required /></div>
+        <div class="field"><label>Password</label><input type="password" id="reg-pass" minlength="6" required /></div>
+        <div class="field"><label>Confirm Password</label><input type="password" id="reg-confirm" minlength="6" required /></div>
         <div class="error-msg" id="reg-error"></div>
-        <button type="submit" class="yellow-btn submit-btn">Create Account</button>
+        <button type="submit" class="yellow-btn submit-btn" id="reg-submit">Create Account</button>
       </form>
     </div>
   </div>
@@ -107,55 +108,94 @@
         <div class="field"><label>Email</label><input type="email" id="login-email" required /></div>
         <div class="field"><label>Password</label><input type="password" id="login-pass" required /></div>
         <div class="error-msg" id="login-error"></div>
-        <button type="submit" class="yellow-btn submit-btn">Enter VLAB</button>
+        <button type="submit" class="yellow-btn submit-btn" id="login-submit">Enter VLAB</button>
       </form>
     </div>
   </div>
 
-  <script>
+  <script type="module">
+    import { initializeApp } from "https://gstatic.com";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, onAuthStateChanged } from "https://gstatic.com";
+    import { getFirestore, doc, getDoc, setDoc } from "https://gstatic.com";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBceBIsTrGK6BRr5um9Sxj1BIEAgdZnKJQ",
+      authDomain: "://firebaseapp.com",
+      projectId: "vlab-75355",
+      storageBucket: "vlab-75355.firebasestorage.app",
+      messagingSenderId: "942029676825",
+      appId: "1:942029676825:web:77cf57b966caa2d6822588"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
     const logo = document.getElementById('logo');
     const regModal = document.getElementById('register-modal');
     const logModal = document.getElementById('login-modal');
     let audioCtx = null, isEntering = false, isAuth = false, downOnLogo = false, startX = 0, startY = 0;
 
-    const reserved = ['admin', 'vlab', 'neal', 'mod', 'staff'];
-    const getUsers = () => JSON.parse(localStorage.getItem('vlab_users') || '[]');
-    const unlock = () => {
-      isAuth = true;
-      document.body.classList.add('authenticated');
-      regModal.classList.remove('open');
-      logModal.classList.remove('open');
-    };
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        isAuth = true;
+        document.body.classList.add('authenticated');
+        regModal.classList.remove('open');
+        logModal.classList.remove('open');
+      }
+    });
 
     document.getElementById('open-register').onclick = () => { document.getElementById('reg-error').textContent = ''; regModal.classList.add('open'); };
     document.getElementById('open-login').onclick = () => { document.getElementById('login-error').textContent = ''; logModal.classList.add('open'); };
     document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => { regModal.classList.remove('open'); logModal.classList.remove('open'); });
 
-    document.getElementById('register-form').onsubmit = (e) => {
+    document.getElementById('register-form').onsubmit = async (e) => {
       e.preventDefault();
       const email = document.getElementById('reg-email').value.trim();
       const name = document.getElementById('reg-name').value.trim();
       const pass = document.getElementById('reg-pass').value;
       const confirm = document.getElementById('reg-confirm').value;
       const err = document.getElementById('reg-error');
-      const users = getUsers();
-      if (reserved.includes(name.toLowerCase()) || users.some(u => u.name.toLowerCase() === name.toLowerCase())) {
-        err.textContent = 'That name is already taken!'; return;
-      }
+      const btn = document.getElementById('reg-submit');
+
       if (pass !== confirm) { err.textContent = 'Passwords do not match!'; return; }
-      users.push({ email, name, pass });
-      localStorage.setItem('vlab_users', JSON.stringify(users));
-      unlock();
+      btn.disabled = true; err.textContent = 'Checking name...';
+
+      try {
+        const nameKey = name.toLowerCase();
+        const nameSnap = await getDoc(doc(db, "usernames", nameKey));
+        if (nameSnap.exists()) {
+          err.textContent = 'That name is already taken!';
+          btn.disabled = false; return;
+        }
+        const cred = await createUserWithEmailAndPassword(auth, email, pass);
+        await updateProfile(cred.user, { displayName: name });
+        await setDoc(doc(db, "usernames", nameKey), { uid: cred.user.uid, name: name });
+      } catch (error) {
+        err.textContent = error.message.replace('Firebase: ', '');
+        btn.disabled = false;
+      }
     };
 
-    document.getElementById('login-form').onsubmit = (e) => {
+    document.getElementById('login-form').onsubmit = async (e) => {
       e.preventDefault();
       const name = document.getElementById('login-name').value.trim();
       const email = document.getElementById('login-email').value.trim();
       const pass = document.getElementById('login-pass').value;
-      const match = getUsers().find(u => u.name.toLowerCase() === name.toLowerCase() && u.email.toLowerCase() === email.toLowerCase() && u.pass === pass);
-      if (!match) { document.getElementById('login-error').textContent = 'Invalid name, email, or password!'; return; }
-      unlock();
+      const err = document.getElementById('login-error');
+      const btn = document.getElementById('login-submit');
+
+      btn.disabled = true; err.textContent = 'Logging in...';
+      try {
+        const cred = await signInWithEmailAndPassword(auth, email, pass);
+        if ((cred.user.displayName || '').toLowerCase() !== name.toLowerCase()) {
+          err.textContent = 'Name does not match this account!';
+          btn.disabled = false; return;
+        }
+      } catch (error) {
+        err.textContent = 'Invalid name, email, or password!';
+        btn.disabled = false;
+      }
     };
 
     function checkTouch(e) {
