@@ -154,7 +154,7 @@
     function checkTouch(e) {
       if (isEntering || document.querySelector('.modal-backdrop.open')) return;
       if (!e.touches || !e.touches.length) { logo.classList.remove('active'); return; }
-      const t = e.touches;
+      const t = e.touches[0];
       const el = document.elementFromPoint(t.clientX, t.clientY);
       logo.classList.toggle('active', el === logo || logo.contains(el));
     }
