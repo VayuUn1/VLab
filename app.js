@@ -41,16 +41,14 @@ let db = null;
 
 let heartbeat = null;
 let currentUid = null;
+let currentPlayerName = "Player";
 let latestDocs = [];
 
 let firebaseFunctions = null;
 
 // ==========================================
-// IMPORTANT: PREVENT FORM URL SUBMISSION
+// PREVENT FORM URL SUBMISSION
 // ==========================================
-
-// These handlers are attached BEFORE Firebase loads.
-// This prevents passwords from appearing in the URL.
 
 registerForm.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -311,7 +309,6 @@ async function startFirebase() {
       onSnapshot
     } = firestoreModule;
 
-    // Firebase configuration
     const firebaseConfig = {
       apiKey: "AIzaSyBceBIsTrGK6BRr5um9Sxj1BIEAgdZnKJQ",
       authDomain: "vlab-75355.firebaseapp.com",
@@ -341,6 +338,7 @@ async function startFirebase() {
     };
 
     firebaseReady = true;
+
     showStatus("Firebase connected! VLAB is ready.");
 
     // ======================================
@@ -355,6 +353,8 @@ async function startFirebase() {
         isAuth = true;
         currentUid = user.uid;
 
+        currentPlayerName = user.displayName || "Player";
+
         document.body.classList.add("authenticated");
 
         regModal.classList.remove("open");
@@ -363,7 +363,7 @@ async function startFirebase() {
         const ping = async () => {
           try {
             await setDoc(doc(db, "online", user.uid), {
-              name: user.displayName || "Player",
+              name: currentPlayerName,
               lastSeen: Date.now()
             });
           } catch (e) {
@@ -377,6 +377,7 @@ async function startFirebase() {
       } else {
         isAuth = false;
         currentUid = null;
+        currentPlayerName = "Player";
 
         document.body.classList.remove("authenticated");
       }
@@ -400,7 +401,6 @@ async function startFirebase() {
         }
 
         await signOut(auth);
-
         location.reload();
 
       } catch (e) {
@@ -529,9 +529,18 @@ async function handleRegister() {
       displayName: name
     });
 
+    // Update the local name immediately.
+    currentPlayerName = name;
+
     await setDoc(usernameRef, {
       uid: cred.user.uid,
       name: name
+    });
+
+    // Immediately save the correct name to online players.
+    await setDoc(doc(db, "online", cred.user.uid), {
+      name: name,
+      lastSeen: Date.now()
     });
 
     regError.textContent = "";
@@ -581,6 +590,8 @@ async function handleLogin() {
       btn.disabled = false;
       return;
     }
+
+    currentPlayerName = accountName || "Player";
 
     loginError.textContent = "";
 
