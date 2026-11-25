@@ -17,7 +17,6 @@ showStatus("VLAB is starting...");
 
 const logo = document.getElementById("logo");
 const mainPage = document.getElementById("main-page");
-
 const regModal = document.getElementById("register-modal");
 const logModal = document.getElementById("login-modal");
 const onlineModal = document.getElementById("online-modal");
@@ -140,7 +139,7 @@ window.addEventListener("touchend", () => {
 });
 
 // ==========================================
-// LOGO CLICK + WHITE PAGE TRANSITION
+// LOGO CLICK + PAGE TRANSITION
 // ==========================================
 
 logo.onpointerdown = (e) => {
@@ -184,12 +183,9 @@ window.onpointerup = (e) => {
     // Start the original black-screen intro.
     document.body.classList.add("entering");
 
-    // Wait 2 seconds, then fade in the new white page.
+    // Keep the original 2-second intro, then open Games.
     window.setTimeout(() => {
-      if (mainPage) {
-        mainPage.classList.add("visible");
-        document.body.classList.add("page-open");
-      }
+      window.location.href = "games.html";
     }, 2000);
   }
 };
@@ -239,6 +235,7 @@ function playSound() {
     0.22,
     now + 0.01
   );
+
   popG.gain.exponentialRampToValueAtTime(
     0.0001,
     now + 0.08
@@ -257,12 +254,13 @@ function playSound() {
     const t = now + 0.045 + i * 0.075;
 
     o.frequency.setValueAtTime(f, t);
-
     g.gain.setValueAtTime(0.0001, t);
+
     g.gain.exponentialRampToValueAtTime(
       0.14,
       t + 0.012
     );
+
     g.gain.exponentialRampToValueAtTime(
       0.0001,
       t + 0.45
@@ -297,9 +295,7 @@ async function startFirebase() {
       "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"
     );
 
-    const {
-      initializeApp
-    } = appModule;
+    const { initializeApp } = appModule;
 
     const {
       getAuth,
@@ -540,7 +536,6 @@ async function handleRegister() {
       displayName: name
     });
 
-    // Update the local name immediately.
     currentPlayerName = name;
 
     await setDoc(usernameRef, {
@@ -548,7 +543,6 @@ async function handleRegister() {
       name: name
     });
 
-    // Immediately save the correct name to online players.
     await setDoc(doc(db, "online", cred.user.uid), {
       name: name,
       lastSeen: Date.now()
@@ -558,7 +552,6 @@ async function handleRegister() {
 
   } catch (err) {
     console.error("Registration error:", err);
-
     regError.textContent = err.message.replace("Firebase: ", "");
     btn.disabled = false;
   }
@@ -577,7 +570,6 @@ async function handleLogin() {
   const name = document.getElementById("login-name").value.trim();
   const email = document.getElementById("login-email").value.trim();
   const pass = document.getElementById("login-pass").value;
-
   const btn = document.getElementById("login-submit");
 
   btn.disabled = true;
@@ -603,7 +595,6 @@ async function handleLogin() {
     }
 
     currentPlayerName = accountName || "Player";
-
     loginError.textContent = "";
 
   } catch (err) {
