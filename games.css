@@ -234,6 +234,97 @@ body {
 
 
 /* ================================
+   POST GAME POPUP
+================================ */
+
+.post-game-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  z-index: 9999;
+  animation: popupFade 0.2s ease;
+}
+
+.post-game-popup {
+  position: relative;
+  background: white;
+  width: 100%;
+  max-width: 420px;
+  padding: 40px 25px;
+  border-radius: 22px;
+  text-align: center;
+  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.15);
+  animation: popupEnter 0.25s ease;
+}
+
+.close-popup-btn {
+  position: absolute;
+  top: 12px;
+  right: 17px;
+  border: none;
+  background: none;
+  font-size: 32px;
+  color: #888888;
+  cursor: pointer;
+}
+
+.popup-icon {
+  font-size: 55px;
+  margin-bottom: 12px;
+}
+
+.post-game-popup h2 {
+  font-size: 29px;
+  margin-bottom: 8px;
+}
+
+.post-game-popup p {
+  color: #888888;
+  font-size: 16px;
+}
+
+.popup-coming-soon {
+  background: #eef4ff;
+  color: #3985ff;
+  padding: 15px;
+  border-radius: 12px;
+  margin-top: 25px;
+  font-weight: 600;
+}
+
+
+/* ================================
+   POPUP ANIMATIONS
+================================ */
+
+@keyframes popupFade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes popupEnter {
+  from {
+    opacity: 0;
+    transform: translateY(15px) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+
+/* ================================
    MOBILE / TABLET
 ================================ */
 
