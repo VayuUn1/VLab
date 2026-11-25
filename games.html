@@ -1,0 +1,115 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>VLAB - Play Games</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  >
+
+  <link rel="stylesheet" href="games.css">
+
+  <script src="games.js" defer></script>
+</head>
+
+<body>
+
+  <!-- HEADER -->
+  <header class="games-header">
+
+    <a href="index.html" class="games-logo">
+      VLAB
+    </a>
+
+    <a
+      class="youtube-link"
+      href="https://youtube.com/@vayuuniverse?si=395iofnKy6U71OLx"
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="VLAB YouTube"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="1" y="4" width="22" height="16" rx="5" fill="#FF0033"/>
+        <path d="M10 8.5L16 12L10 15.5V8.5Z" fill="#FFFFFF"/>
+      </svg>
+    </a>
+
+  </header>
+
+
+  <!-- MAIN CONTENT -->
+  <main class="games-main">
+
+    <!-- HERO SECTION -->
+    <section class="games-hero">
+
+      <p class="games-small-label">
+        WELCOME TO VLAB
+      </p>
+
+      <h1 class="games-title">
+        <span>PLAY</span>
+        <span>ANY</span>
+        <span>GAMES</span>
+      </h1>
+
+      <p class="games-subtitle">
+        Discover games. Play games. Share your creations.
+      </p>
+
+      <button
+        class="post-game-btn"
+        id="post-game-btn"
+        type="button"
+      >
+        <span>+</span>
+        Post Game
+      </button>
+
+    </section>
+
+
+    <!-- GAME LIBRARY -->
+    <section class="game-library">
+
+      <div class="library-heading">
+        <div>
+          <h2>Explore Games</h2>
+          <p>Find something fun to play.</p>
+        </div>
+      </div>
+
+      <!-- Games will appear here later -->
+      <div class="game-grid" id="game-grid">
+
+        <!-- EMPTY STATE -->
+        <div class="empty-games" id="empty-games">
+
+          <div class="empty-games-icon">
+            🎮
+          </div>
+
+          <h3>No games yet!</h3>
+
+          <p>
+            Be the first creator to publish a game on VLAB.
+          </p>
+
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+</body>
+</html>
