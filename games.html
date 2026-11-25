@@ -16,7 +16,6 @@
   >
 
   <link rel="stylesheet" href="games.css">
-
   <script src="games.js" defer></script>
 </head>
 
@@ -24,10 +23,7 @@
 
   <!-- HEADER -->
   <header class="games-header">
-
-    <a href="index.html" class="games-logo">
-      VLAB
-    </a>
+    <a href="index.html" class="games-logo">VLAB</a>
 
     <a
       class="youtube-link"
@@ -41,19 +37,14 @@
         <path d="M10 8.5L16 12L10 15.5V8.5Z" fill="#FFFFFF"/>
       </svg>
     </a>
-
   </header>
-
 
   <!-- MAIN CONTENT -->
   <main class="games-main">
 
-    <!-- HERO SECTION -->
+    <!-- HERO -->
     <section class="games-hero">
-
-      <p class="games-small-label">
-        WELCOME TO VLAB
-      </p>
+      <p class="games-small-label">WELCOME TO VLAB</p>
 
       <h1 class="games-title">
         <span>PLAY</span>
@@ -73,13 +64,10 @@
         <span>+</span>
         Post Game
       </button>
-
     </section>
-
 
     <!-- GAME LIBRARY -->
     <section class="game-library">
-
       <div class="library-heading">
         <div>
           <h2>Explore Games</h2>
@@ -87,29 +75,146 @@
         </div>
       </div>
 
-      <!-- Games will appear here later -->
       <div class="game-grid" id="game-grid">
 
-        <!-- EMPTY STATE -->
         <div class="empty-games" id="empty-games">
-
-          <div class="empty-games-icon">
-            🎮
-          </div>
-
+          <div class="empty-games-icon">🎮</div>
           <h3>No games yet!</h3>
-
-          <p>
-            Be the first creator to publish a game on VLAB.
-          </p>
-
+          <p>Be the first creator to publish a game on VLAB.</p>
         </div>
 
       </div>
-
     </section>
 
   </main>
+
+  <!-- POST GAME FORM -->
+  <div
+    class="post-game-overlay"
+    id="post-game-overlay"
+    hidden
+  >
+    <section
+      class="post-game-popup"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="post-game-title"
+    >
+
+      <button
+        type="button"
+        class="close-popup-btn"
+        id="close-post-game"
+        aria-label="Close"
+      >
+        &times;
+      </button>
+
+      <div class="popup-icon">🎮</div>
+
+      <h2 id="post-game-title">Post a Game</h2>
+
+      <p class="post-game-description">
+        Share your creation with the VLAB community!
+      </p>
+
+      <form id="post-game-form">
+
+        <!-- GAME TITLE -->
+        <div class="form-group">
+          <label for="game-title">Game Title *</label>
+
+          <input
+            type="text"
+            id="game-title"
+            name="title"
+            placeholder="Enter your game title"
+            maxlength="60"
+            required
+          >
+        </div>
+
+        <!-- GAME DESCRIPTION -->
+        <div class="form-group">
+          <label for="game-description">
+            Description
+            <span>(Optional)</span>
+          </label>
+
+          <textarea
+            id="game-description"
+            name="description"
+            placeholder="Tell everyone about your game..."
+            maxlength="300"
+            rows="3"
+          ></textarea>
+        </div>
+
+        <!-- GAME FILE -->
+        <div class="form-group">
+          <label for="game-file">Game File *</label>
+
+          <input
+            type="file"
+            id="game-file"
+            name="gameFile"
+            accept=".html,text/html"
+            required
+          >
+
+          <small>
+            Upload a single HTML game file.
+          </small>
+        </div>
+
+        <!-- COVER IMAGE -->
+        <div class="form-group">
+          <label for="game-cover">
+            Cover Image
+            <span>(Optional)</span>
+          </label>
+
+          <div class="cover-preview-container">
+            <img
+              src="default-game-cover.jpg"
+              id="cover-preview"
+              alt="Default VLAB game cover"
+            >
+          </div>
+
+          <input
+            type="file"
+            id="game-cover"
+            name="cover"
+            accept="image/png,image/jpeg,image/webp"
+          >
+
+          <small>
+            No cover? VLAB will use its default controller image.
+          </small>
+        </div>
+
+        <!-- STATUS MESSAGE -->
+        <p
+          id="upload-status"
+          class="upload-status"
+          role="status"
+          aria-live="polite"
+        ></p>
+
+        <!-- SUBMIT -->
+        <button
+          type="submit"
+          class="submit-game-btn"
+          id="submit-game-btn"
+        >
+          Publish Game
+        </button>
+
+      </form>
+
+    </section>
+  </div>
 
 </body>
 </html>
