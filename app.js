@@ -58,7 +58,7 @@ function playSound() {
 }
 async function startFirebase() {
   try {
-    const { initializeApp } = await import("https://gstatic.com");
+    const { initializeApp } = await import("https://www.gstatic.com");
     const { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, onAuthStateChanged, signOut } = await import("https://gstatic.com");
     const { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, onSnapshot } = await import("https://gstatic.com");
 
