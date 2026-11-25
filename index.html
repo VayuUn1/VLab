@@ -1,117 +1,383 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>VLAB</title>
-  <link href="https://googleapis.com" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
     body {
-      background: #fff; height: 100vh; display: flex; flex-direction: column;
-      justify-content: center; align-items: center; overflow: hidden;
-      font-family: 'Fredoka', sans-serif; touch-action: manipulation;
+      background: #fff;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      font-family: 'Fredoka', sans-serif;
+      touch-action: manipulation;
       transition: background-color 1.25s cubic-bezier(0.22, 1, 0.36, 1);
     }
-    body.entering { background: #050508; }
-    body.entering .exit-wrapper { animation: invertedJump 1.15s cubic-bezier(0.35, 0, 0.25, 1) forwards; pointer-events: none; }
+
+    body.entering {
+      background: #050508;
+    }
+
+    body.entering .exit-wrapper {
+      animation: invertedJump 1.15s cubic-bezier(0.35, 0, 0.25, 1) forwards;
+      pointer-events: none;
+    }
+
     @keyframes invertedJump {
       0% { transform: translateY(0) scale(1, 1); opacity: 1; }
       22% { transform: translateY(38px) scale(1.08, 0.9); opacity: 1; }
       32% { transform: translateY(28px) scale(0.96, 1.05); opacity: 1; }
       100% { transform: translateY(-85vh) scale(0.95, 1.04); opacity: 0; }
     }
-    .drone-wrapper { animation: droneFloat 3.6s ease-in-out infinite; }
+
+    .drone-wrapper {
+      animation: droneFloat 3.6s ease-in-out infinite;
+    }
+
     @keyframes droneFloat {
       0%, 100% { transform: translateY(0) rotate(-1deg); }
       50% { transform: translateY(-18px) rotate(1.5deg); }
     }
+
     .vlab-logo {
-      font-size: clamp(5rem, 18vw, 11rem); font-weight: 700; letter-spacing: 0.04em;
-      color: #18181b; user-select: none; display: inline-block; cursor: not-allowed;
+      font-size: clamp(5rem, 18vw, 11rem);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: #18181b;
+      user-select: none;
+      display: inline-block;
+      cursor: not-allowed;
       transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
       text-shadow: 4px 4px 0 #ff4d6d, 8px 8px 0 #ffbe0b, 12px 12px 0 #3a86ff, 16px 16px 24px rgba(0,0,0,0.12);
     }
-    body.authenticated .vlab-logo { cursor: pointer; }
-    @media (hover: hover) { .vlab-logo:hover { transform: scale(1.15); } }
-    .vlab-logo.active { transform: scale(1.15); }
-    .vlab-logo.shake { animation: lockShake 0.35s ease; }
+
+    body.authenticated .vlab-logo {
+      cursor: pointer;
+    }
+
+    @media (hover: hover) {
+      .vlab-logo:hover {
+        transform: scale(1.15);
+      }
+    }
+
+    .vlab-logo.active {
+      transform: scale(1.15);
+    }
+
+    .vlab-logo.shake {
+      animation: lockShake 0.35s ease;
+    }
+
     @keyframes lockShake {
       0%, 100% { transform: translateX(0); }
       25% { transform: translateX(-10px); }
       75% { transform: translateX(10px); }
     }
-    .auth-buttons { margin-top: 36px; display: flex; gap: 18px; z-index: 10; transition: opacity 0.3s ease; }
-    body.authenticated .auth-buttons, body.entering .auth-buttons { opacity: 0; pointer-events: none; }
+
+    .auth-buttons {
+      margin-top: 36px;
+      display: flex;
+      gap: 18px;
+      z-index: 10;
+      transition: opacity 0.3s ease;
+    }
+
+    body.authenticated .auth-buttons,
+    body.entering .auth-buttons {
+      opacity: 0;
+      pointer-events: none;
+    }
+
     .yellow-btn {
-      font-family: 'Fredoka', sans-serif; font-size: 1.2rem; font-weight: 700;
-      color: #18181b; background: #ffd60a; border: 3px solid #18181b;
-      border-radius: 16px; padding: 12px 28px; cursor: pointer;
+      font-family: 'Fredoka', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #18181b;
+      background: #ffd60a;
+      border: 3px solid #18181b;
+      border-radius: 16px;
+      padding: 12px 28px;
+      cursor: pointer;
       box-shadow: 0 6px 0 #d99b00, 0 10px 18px rgba(0,0,0,0.12);
     }
-    .yellow-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #d99b00; }
+
+    .yellow-btn:active {
+      transform: translateY(4px);
+      box-shadow: 0 2px 0 #d99b00;
+    }
+
     #online-toggle-btn {
-      position: fixed; top: 18px; right: 18px; z-index: 40;
-      font-family: 'Fredoka', sans-serif; font-size: 1rem; font-weight: 700;
-      color: #18181b; background: #ffd60a; border: 3px solid #18181b;
-      border-radius: 999px; padding: 8px 18px; cursor: pointer;
-      box-shadow: 0 4px 0 #d99b00; display: flex; align-items: center; gap: 8px;
+      position: fixed;
+      top: 18px;
+      right: 18px;
+      z-index: 40;
+      font-family: 'Fredoka', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #18181b;
+      background: #ffd60a;
+      border: 3px solid #18181b;
+      border-radius: 999px;
+      padding: 8px 18px;
+      cursor: pointer;
+      box-shadow: 0 4px 0 #d99b00;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
+
     #logout-btn {
-      display: none; position: fixed; top: 18px; left: 18px; z-index: 40;
-      font-family: 'Fredoka', sans-serif; font-size: 0.95rem; font-weight: 700;
-      color: #fff; background: #ef4444; border: 3px solid #18181b;
-      border-radius: 999px; padding: 8px 16px; cursor: pointer; box-shadow: 0 4px 0 #991b1b;
+      display: none;
+      position: fixed;
+      top: 18px;
+      left: 18px;
+      z-index: 40;
+      font-family: 'Fredoka', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #fff;
+      background: #ef4444;
+      border: 3px solid #18181b;
+      border-radius: 999px;
+      padding: 8px 16px;
+      cursor: pointer;
+      box-shadow: 0 4px 0 #991b1b;
     }
-    body.authenticated #logout-btn { display: block; }
-    .live-dot { width: 10px; height: 10px; background: #22c55e; border-radius: 50%; border: 2px solid #18181b; }
-    #online-list { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
-    .online-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #f4f4f5; border: 2px solid #18181b; border-radius: 12px; font-weight: 700; }
-    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none; justify-content: center; align-items: center; padding: 20px; z-index: 50; }
-    .modal-backdrop.open { display: flex; }
-    .modal-card { background: #fff; border: 3px solid #18181b; border-radius: 24px; box-shadow: 8px 8px 0 #ffbe0b; width: 100%; max-width: 380px; padding: 28px 24px; position: relative; }
-    .modal-card h2 { font-size: 1.8rem; margin-bottom: 16px; text-align: center; }
-    .close-btn { position: absolute; top: 14px; right: 16px; background: none; border: none; font-size: 1.5rem; font-weight: 700; cursor: pointer; }
-    .field { margin-bottom: 12px; }
-    .field label { display: block; font-size: 0.95rem; margin-bottom: 4px; }
-    .field input { width: 100%; padding: 10px 14px; font-family: 'Fredoka', sans-serif; font-size: 1rem; border: 2.5px solid #18181b; border-radius: 12px; }
-    .error-msg { color: #e63946; font-size: 0.9rem; min-height: 20px; margin-bottom: 10px; text-align: center; }
-    .submit-btn { width: 100%; }
+
+    body.authenticated #logout-btn {
+      display: block;
+    }
+
+    .live-dot {
+      width: 10px;
+      height: 10px;
+      background: #22c55e;
+      border-radius: 50%;
+      border: 2px solid #18181b;
+    }
+
+    #online-list {
+      max-height: 260px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .online-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: #f4f4f5;
+      border: 2px solid #18181b;
+      border-radius: 12px;
+      font-weight: 700;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      z-index: 50;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-card {
+      background: #fff;
+      border: 3px solid #18181b;
+      border-radius: 24px;
+      box-shadow: 8px 8px 0 #ffbe0b;
+      width: 100%;
+      max-width: 380px;
+      padding: 28px 24px;
+      position: relative;
+    }
+
+    .modal-card h2 {
+      font-size: 1.8rem;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 14px;
+      right: 16px;
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .field {
+      margin-bottom: 12px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 0.95rem;
+      margin-bottom: 4px;
+    }
+
+    .field input {
+      width: 100%;
+      padding: 10px 14px;
+      font-family: 'Fredoka', sans-serif;
+      font-size: 1rem;
+      border: 2.5px solid #18181b;
+      border-radius: 12px;
+    }
+
+    .error-msg {
+      color: #e63946;
+      font-size: 0.9rem;
+      min-height: 20px;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+
+    .submit-btn {
+      width: 100%;
+    }
+
+    #debug {
+      position: fixed;
+      bottom: 12px;
+      left: 12px;
+      right: 12px;
+      z-index: 100;
+      padding: 8px 12px;
+      border-radius: 10px;
+      background: #18181b;
+      color: #fff;
+      font-size: 12px;
+      text-align: center;
+      overflow-wrap: anywhere;
+    }
   </style>
 </head>
+
 <body>
   <button id="logout-btn">Logout</button>
-  <button id="online-toggle-btn"><span class="live-dot"></span> Online (<span id="online-count">0</span>)</button>
-  <div class="exit-wrapper"><div class="drone-wrapper"><h1 class="vlab-logo" id="logo">VLAB</h1></div></div>
+
+  <button id="online-toggle-btn">
+    <span class="live-dot"></span>
+    Online (<span id="online-count">0</span>)
+  </button>
+
+  <div class="exit-wrapper">
+    <div class="drone-wrapper">
+      <h1 class="vlab-logo" id="logo">VLAB</h1>
+    </div>
+  </div>
+
   <div class="auth-buttons">
     <button class="yellow-btn" id="open-login">Login</button>
     <button class="yellow-btn" id="open-register">Register</button>
   </div>
 
-  <div class="modal-backdrop" id="online-modal"><div class="modal-card"><button class="close-btn" data-close>&times;</button><h2>Online (<span id="modal-online-count">0</span>)</h2><div id="online-list"><p style="text-align:center;color:#666;">No players online</p></div></div></div>
+  <div class="modal-backdrop" id="online-modal">
+    <div class="modal-card">
+      <button class="close-btn" data-close>&times;</button>
+      <h2>Online (<span id="modal-online-count">0</span>)</h2>
+      <div id="online-list">
+        <p style="text-align:center;color:#666;">No players online</p>
+      </div>
+    </div>
+  </div>
 
-  <div class="modal-backdrop" id="register-modal"><div class="modal-card"><button class="close-btn" data-close>&times;</button><h2>Register</h2>
-    <form id="register-form" autocomplete="on">
-      <div class="field"><label>Email</label><input type="email" id="reg-email" name="email" autocomplete="email" required /></div>
-      <div class="field"><label>Name</label><input type="text" id="reg-name" name="username" autocomplete="username" required /></div>
-      <div class="field"><label>Password</label><input type="password" id="reg-pass" name="password" autocomplete="new-password" minlength="6" required /></div>
-      <div class="field"><label>Confirm Password</label><input type="password" id="reg-confirm" name="confirm-password" autocomplete="new-password" minlength="6" required /></div>
-      <div class="error-msg" id="reg-error"></div>
-      <button type="submit" class="yellow-btn submit-btn" id="reg-submit">Create Account</button>
-    </form>
-  </div></div>
+  <div class="modal-backdrop" id="register-modal">
+    <div class="modal-card">
+      <button class="close-btn" data-close>&times;</button>
+      <h2>Register</h2>
 
-  <div class="modal-backdrop" id="login-modal"><div class="modal-card"><button class="close-btn" data-close>&times;</button><h2>Login</h2>
-    <form id="login-form" autocomplete="on">
-      <div class="field"><label>Name</label><input type="text" id="login-name" name="username" autocomplete="username" required /></div>
-      <div class="field"><label>Email</label><input type="email" id="login-email" name="email" autocomplete="email" required /></div>
-      <div class="field"><label>Password</label><input type="password" id="login-pass" name="password" autocomplete="current-password" required /></div>
-      <div class="error-msg" id="login-error"></div>
-      <button type="submit" class="yellow-btn submit-btn" id="login-submit">Enter VLAB</button>
-    </form>
-  </div></div>
+      <form id="register-form" autocomplete="on" onsubmit="event.preventDefault()">
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="reg-email" name="email" autocomplete="email" required />
+        </div>
+
+        <div class="field">
+          <label>Name</label>
+          <input type="text" id="reg-name" name="username" autocomplete="username" required />
+        </div>
+
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="reg-pass" name="password" autocomplete="new-password" minlength="6" required />
+        </div>
+
+        <div class="field">
+          <label>Confirm Password</label>
+          <input type="password" id="reg-confirm" name="confirm-password" autocomplete="new-password" minlength="6" required />
+        </div>
+
+        <div class="error-msg" id="reg-error"></div>
+
+        <button type="submit" class="yellow-btn submit-btn" id="reg-submit">
+          Create Account
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="login-modal">
+    <div class="modal-card">
+      <button class="close-btn" data-close>&times;</button>
+      <h2>Login</h2>
+
+      <form id="login-form" autocomplete="on" onsubmit="event.preventDefault()">
+        <div class="field">
+          <label>Name</label>
+          <input type="text" id="login-name" name="username" autocomplete="username" required />
+        </div>
+
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="login-email" name="email" autocomplete="email" required />
+        </div>
+
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="login-pass" name="password" autocomplete="current-password" required />
+        </div>
+
+        <div class="error-msg" id="login-error"></div>
+
+        <button type="submit" class="yellow-btn submit-btn" id="login-submit">
+          Enter VLAB
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div id="debug">VLAB is loading...</div>
 
   <script type="module" src="app.js"></script>
 </body>
 </html>
-
