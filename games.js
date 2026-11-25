@@ -1,7 +1,7 @@
 
 /* =========================================
-   VLAB - GAME PUBLISHING SYSTEM
-   Firebase Authentication + Firestore
+   VLAB GAME HUB
+   Publishing + Likes + Dislikes + Fullscreen
 ========================================= */
 
 const firebaseConfig = {
@@ -13,10 +13,11 @@ const firebaseConfig = {
   appId: "1:942029676825:web:77cf57b966caa2d6822588"
 };
 
-const postButton = document.getElementById("post-game-btn");
+// Form elements
+const postGameButton = document.getElementById("post-game-btn");
 const overlay = document.getElementById("post-game-overlay");
 const closeButton = document.getElementById("close-post-game");
-const form = document.getElementById("post-game-form");
+const uploadForm = document.getElementById("post-game-form");
 
 const titleInput = document.getElementById("game-title");
 const descriptionInput = document.getElementById("game-description");
@@ -24,20 +25,21 @@ const gameFileInput = document.getElementById("game-file");
 const coverInput = document.getElementById("game-cover");
 
 const coverPreview = document.getElementById("cover-preview");
-const statusText = document.getElementById("upload-status");
+const uploadStatus = document.getElementById("upload-status");
 const submitButton = document.getElementById("submit-game-btn");
 
+// Library elements
 const gameGrid = document.getElementById("game-grid");
 const emptyGames = document.getElementById("empty-games");
 
-let auth = null;
-let db = null;
+let auth;
+let db;
 let currentUser = null;
+let previousCoverURL = null;
 let firestore = null;
-let unsubscribeGames = null;
 
 /* =========================================
-   STYLES FOR GAME CARDS AND GAME VIEWER
+   ADD PLAYER STYLES
 ========================================= */
 
 const style = document.createElement("style");
@@ -45,87 +47,136 @@ const style = document.createElement("style");
 style.textContent = `
   #game-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill,minmax(230px,1fr));
-    gap: 22px;
-    width: 100%;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 20px;
   }
 
   .vlab-game-card {
     background: white;
-    border: 1px solid #eeeeee;
-    border-radius: 18px;
+    color: #222;
+    border-radius: 16px;
     overflow: hidden;
+    border: 1px solid #e8e8e8;
     box-shadow: 0 5px 18px rgba(0,0,0,.06);
   }
 
   .vlab-game-cover {
     height: 145px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     background: linear-gradient(135deg,#3985ff,#8b5cf6);
     color: white;
-    font-size: 35px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 32px;
     font-weight: bold;
+    overflow: hidden;
+  }
+
+  .vlab-game-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 
   .vlab-game-info {
-    padding: 17px;
+    padding: 16px;
   }
 
   .vlab-game-info h3 {
-    font-size: 21px;
-    margin-bottom: 7px;
+    font-size: 20px;
     overflow-wrap: anywhere;
+    margin: 0 0 8px;
   }
 
   .vlab-game-info p {
-    color: #777;
     font-size: 14px;
-    min-height: 35px;
+    color: #777;
     overflow-wrap: anywhere;
   }
 
   .vlab-play-button {
     width: 100%;
-    border: 0;
-    border-radius: 10px;
     padding: 12px;
-    margin-top: 14px;
+    margin-top: 12px;
+    border: none;
+    border-radius: 10px;
     background: #3985ff;
     color: white;
-    font: inherit;
+    font-weight: bold;
+    font-size: 15px;
+    cursor: pointer;
+  }
+
+  .vlab-vote-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .vlab-vote-button {
+    flex: 1;
+    padding: 10px 5px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    background: white;
+    color: #333;
+    font-size: 14px;
     font-weight: bold;
     cursor: pointer;
+  }
+
+  .vlab-vote-button.liked {
+    background: #e5f8eb;
+    border-color: #27ae60;
+    color: #168443;
+  }
+
+  .vlab-vote-button.disliked {
+    background: #ffeded;
+    border-color: #e05252;
+    color: #c0392b;
   }
 
   .vlab-viewer {
     position: fixed;
     inset: 0;
-    z-index: 100000;
+    z-index: 999999;
     background: #111;
     display: flex;
     flex-direction: column;
   }
 
   .vlab-viewer-header {
-    height: 58px;
-    padding: 0 15px;
+    min-height: 58px;
+    padding: 8px 14px;
+    background: white;
+    color: #222;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: white;
-    color: #222;
-    font-weight: bold;
+    gap: 10px;
   }
 
-  .vlab-viewer-close {
-    border: 0;
+  .vlab-viewer-title {
+    font-weight: bold;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .vlab-viewer-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .vlab-viewer-actions button {
+    border: none;
     border-radius: 8px;
-    padding: 9px 15px;
+    padding: 10px 13px;
     background: #222;
     color: white;
-    font-size: 16px;
+    font-size: 14px;
+    font-weight: bold;
     cursor: pointer;
   }
 
@@ -135,12 +186,29 @@ style.textContent = `
     border: 0;
     background: white;
   }
+
+  .vlab-vote-message {
+    font-size: 12px;
+    color: #777;
+    margin-top: 7px;
+  }
+
+  @media (max-width: 500px) {
+    .vlab-viewer-header {
+      padding: 7px;
+    }
+
+    .vlab-viewer-actions button {
+      padding: 9px;
+      font-size: 12px;
+    }
+  }
 `;
 
 document.head.appendChild(style);
 
 /* =========================================
-   INITIALIZE FIREBASE
+   FIREBASE INITIALIZATION
 ========================================= */
 
 async function initializeVLAB() {
@@ -166,15 +234,20 @@ async function initializeVLAB() {
 
     firestore = {
       collection: dbModule.collection,
+      doc: dbModule.doc,
       addDoc: dbModule.addDoc,
+      setDoc: dbModule.setDoc,
+      deleteDoc: dbModule.deleteDoc,
+      getDoc: dbModule.getDoc,
+      onSnapshot: dbModule.onSnapshot,
       query: dbModule.query,
       orderBy: dbModule.orderBy,
-      onSnapshot: dbModule.onSnapshot,
       serverTimestamp: dbModule.serverTimestamp
     };
 
     authModule.onAuthStateChanged(auth, user => {
       currentUser = user;
+      renderGames();
     });
 
     loadGames();
@@ -189,70 +262,83 @@ async function initializeVLAB() {
    FORM OPEN / CLOSE
 ========================================= */
 
-function openForm() {
+function openPostGameForm() {
+  if (!overlay) return;
+
   overlay.hidden = false;
-  titleInput.focus();
+
+  if (titleInput) titleInput.focus();
 }
 
-function closeForm() {
+function closePostGameForm() {
+  if (!overlay) return;
+
   overlay.hidden = true;
+
+  if (postGameButton) postGameButton.focus();
 }
 
-postButton.addEventListener("click", openForm);
-closeButton.addEventListener("click", closeForm);
+postGameButton?.addEventListener("click", openPostGameForm);
+closeButton?.addEventListener("click", closePostGameForm);
 
-overlay.addEventListener("click", event => {
-  if (event.target === overlay) closeForm();
-});
-
-document.addEventListener("keydown", event => {
-  if (event.key === "Escape") {
-    closeForm();
+overlay?.addEventListener("click", event => {
+  if (event.target === overlay) {
+    closePostGameForm();
   }
 });
 
-/* =========================================
-   STATUS MESSAGE
-========================================= */
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && overlay && !overlay.hidden) {
+    closePostGameForm();
+  }
+});
 
 function showStatus(message) {
-  statusText.textContent = message;
+  if (uploadStatus) uploadStatus.textContent = message;
 }
 
 /* =========================================
    COVER PREVIEW
 ========================================= */
 
-let coverURL = null;
+if (coverInput && coverPreview) {
+  coverInput.addEventListener("change", () => {
+    const file = coverInput.files[0];
 
-coverInput.addEventListener("change", () => {
-  const file = coverInput.files[0];
+    if (previousCoverURL) {
+      URL.revokeObjectURL(previousCoverURL);
+      previousCoverURL = null;
+    }
 
-  if (coverURL) {
-    URL.revokeObjectURL(coverURL);
-    coverURL = null;
-  }
+    if (!file) {
+      coverPreview.src = "default-game-cover.jpg";
+      return;
+    }
 
-  if (!file) {
-    coverPreview.src = "default-game-cover.jpg";
-    return;
-  }
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp"
+    ];
 
-  if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
-    coverInput.value = "";
-    showStatus("Choose a JPG, PNG, or WEBP image.");
-    return;
-  }
+    if (!allowedTypes.includes(file.type)) {
+      coverInput.value = "";
+      coverPreview.src = "default-game-cover.jpg";
+      showStatus("Choose a JPG, PNG, or WEBP image.");
+      return;
+    }
 
-  coverURL = URL.createObjectURL(file);
-  coverPreview.src = coverURL;
-});
+    previousCoverURL = URL.createObjectURL(file);
+    coverPreview.src = previousCoverURL;
+    showStatus("");
+  });
+}
 
 /* =========================================
    PUBLISH GAME
 ========================================= */
 
-form.addEventListener("submit", async event => {
+uploadForm?.addEventListener("submit", async event => {
   event.preventDefault();
 
   if (!currentUser) {
@@ -265,7 +351,7 @@ form.addEventListener("submit", async event => {
   const gameFile = gameFileInput.files[0];
 
   if (!title || !gameFile) {
-    showStatus("Please enter a title and select an HTML file.");
+    showStatus("Enter a title and choose an HTML file.");
     return;
   }
 
@@ -274,29 +360,29 @@ form.addEventListener("submit", async event => {
     return;
   }
 
-  // Keep a safety margin below Firestore's document limit.
   if (gameFile.size > 450000) {
-    showStatus("This HTML file is too large. Maximum size: 450 KB.");
+    showStatus("Maximum HTML file size is 450 KB.");
     return;
   }
 
-  if (description.length > 300 || title.length > 60) {
+  if (title.length > 80 || description.length > 300) {
     showStatus("Your title or description is too long.");
     return;
   }
 
   submitButton.disabled = true;
   submitButton.textContent = "PUBLISHING...";
-  showStatus("Reading your game...");
 
   try {
+    showStatus("Reading your game...");
+
     const html = await gameFile.text();
 
     if (!html.trim()) {
-      throw new Error("The HTML file is empty.");
+      throw new Error("Your HTML file is empty.");
     }
 
-    showStatus("Publishing your game...");
+    showStatus("Publishing game...");
 
     await firestore.addDoc(
       firestore.collection(db, "games"),
@@ -312,24 +398,24 @@ form.addEventListener("submit", async event => {
 
     showStatus("GAME PUBLISHED SUCCESSFULLY!");
 
-    form.reset();
+    uploadForm.reset();
     coverPreview.src = "default-game-cover.jpg";
 
-    if (coverURL) {
-      URL.revokeObjectURL(coverURL);
-      coverURL = null;
+    if (previousCoverURL) {
+      URL.revokeObjectURL(previousCoverURL);
+      previousCoverURL = null;
     }
 
     setTimeout(() => {
-      closeForm();
+      closePostGameForm();
       showStatus("");
     }, 1200);
 
   } catch (error) {
-    console.error("Publishing error:", error);
+    console.error("VLAB publishing error:", error);
 
     if (error.code === "permission-denied") {
-      showStatus("Permission denied. Please check Firestore Rules.");
+      showStatus("Permission denied. Check Firestore Rules.");
     } else {
       showStatus("Publishing failed: " + error.message);
     }
@@ -341,8 +427,11 @@ form.addEventListener("submit", async event => {
 });
 
 /* =========================================
-   LOAD PUBLIC GAME LIBRARY
+   LOAD GAME LIBRARY
 ========================================= */
+
+let games = [];
+let voteListeners = {};
 
 function loadGames() {
   const gamesQuery = firestore.query(
@@ -350,59 +439,235 @@ function loadGames() {
     firestore.orderBy("createdAt", "desc")
   );
 
-  unsubscribeGames = firestore.onSnapshot(
+  firestore.onSnapshot(
     gamesQuery,
     snapshot => {
-      gameGrid.replaceChildren();
+      games = snapshot.docs.map(item => ({
+        id: item.id,
+        ...item.data()
+      }));
 
-      emptyGames.hidden = snapshot.size > 0;
-
-      snapshot.forEach(documentSnapshot => {
-        const game = documentSnapshot.data();
-
-        const card = document.createElement("article");
-        card.className = "vlab-game-card";
-
-        const cover = document.createElement("div");
-        cover.className = "vlab-game-cover";
-        cover.textContent = "VLAB";
-
-        const info = document.createElement("div");
-        info.className = "vlab-game-info";
-
-        const title = document.createElement("h3");
-        title.textContent = game.title || "Untitled Game";
-
-        const description = document.createElement("p");
-        description.textContent =
-          game.description || "No description provided.";
-
-        const author = document.createElement("p");
-        author.textContent = "By " + (game.ownerName || "Player");
-
-        const playButton = document.createElement("button");
-        playButton.className = "vlab-play-button";
-        playButton.textContent = "PLAY GAME";
-
-        playButton.addEventListener("click", () => {
-          openGame(game.title, game.html);
-        });
-
-        info.append(title, description, author, playButton);
-        card.append(cover, info);
-        gameGrid.appendChild(card);
-      });
+      renderGames();
     },
     error => {
-      console.error("Game loading error:", error);
-      emptyGames.hidden = false;
-      emptyGames.textContent = "Could not load games. Please refresh.";
+      console.error("VLAB library error:", error);
+      if (emptyGames) {
+        emptyGames.hidden = false;
+        emptyGames.textContent = "Could not load games. Please refresh.";
+      }
     }
   );
 }
 
 /* =========================================
-   SANDBOXED GAME VIEWER
+   RENDER GAME CARDS
+========================================= */
+
+function renderGames() {
+  if (!gameGrid || !emptyGames || !firestore) return;
+
+  gameGrid.replaceChildren();
+  emptyGames.hidden = games.length > 0;
+
+  if (games.length === 0) {
+    emptyGames.textContent = "No games yet. Be the first to publish!";
+  }
+
+  games.forEach(game => {
+    const card = document.createElement("article");
+    card.className = "vlab-game-card";
+
+    const cover = document.createElement("div");
+    cover.className = "vlab-game-cover";
+    cover.textContent = "VLAB";
+
+    const info = document.createElement("div");
+    info.className = "vlab-game-info";
+
+    const title = document.createElement("h3");
+    title.textContent = game.title || "Untitled Game";
+
+    const description = document.createElement("p");
+    description.textContent =
+      game.description || "No description provided.";
+
+    const author = document.createElement("p");
+    author.textContent = "By " + (game.ownerName || "Player");
+
+    const playButton = document.createElement("button");
+    playButton.className = "vlab-play-button";
+    playButton.textContent = "PLAY GAME";
+
+    playButton.addEventListener("click", () => {
+      openGame(game.title, game.html);
+    });
+
+    const voteRow = document.createElement("div");
+    voteRow.className = "vlab-vote-row";
+
+    const likeButton = document.createElement("button");
+    likeButton.className = "vlab-vote-button";
+    likeButton.textContent = "👍 0";
+
+    const dislikeButton = document.createElement("button");
+    dislikeButton.className = "vlab-vote-button";
+    dislikeButton.textContent = "👎 0";
+
+    const voteMessage = document.createElement("div");
+    voteMessage.className = "vlab-vote-message";
+
+    const voteRefs = {
+      likeButton,
+      dislikeButton,
+      voteMessage
+    };
+
+    watchVotes(game.id, voteRefs);
+
+    likeButton.addEventListener("click", () => {
+      submitVote(game.id, 1, voteRefs);
+    });
+
+    dislikeButton.addEventListener("click", () => {
+      submitVote(game.id, -1, voteRefs);
+    });
+
+    voteRow.append(likeButton, dislikeButton);
+
+    info.append(
+      title,
+      description,
+      author,
+      playButton,
+      voteRow,
+      voteMessage
+    );
+
+    card.append(cover, info);
+    gameGrid.appendChild(card);
+  });
+}
+
+/* =========================================
+   LIVE VOTE COUNTS
+========================================= */
+
+function watchVotes(gameId, elements) {
+  const votesRef = firestore.collection(
+    db,
+    "games",
+    gameId,
+    "votes"
+  );
+
+  const unsubscribe = firestore.onSnapshot(
+    votesRef,
+    snapshot => {
+      let likes = 0;
+      let dislikes = 0;
+      let myVote = 0;
+
+      snapshot.forEach(voteDoc => {
+        const vote = voteDoc.data().value;
+
+        if (vote === 1) likes++;
+        if (vote === -1) dislikes++;
+
+        if (
+          currentUser &&
+          voteDoc.id === currentUser.uid
+        ) {
+          myVote = vote;
+        }
+      });
+
+      elements.likeButton.textContent = "👍 " + likes;
+      elements.dislikeButton.textContent = "👎 " + dislikes;
+
+      elements.likeButton.classList.toggle(
+        "liked",
+        myVote === 1
+      );
+
+      elements.dislikeButton.classList.toggle(
+        "disliked",
+        myVote === -1
+      );
+
+      if (!currentUser) {
+        elements.voteMessage.textContent =
+          "Log in to vote.";
+      } else {
+        elements.voteMessage.textContent =
+          myVote === 1
+            ? "You liked this game."
+            : myVote === -1
+              ? "You disliked this game."
+              : "You haven't voted yet.";
+      }
+    },
+    error => {
+      console.error("Vote loading error:", error);
+      elements.voteMessage.textContent =
+        "Could not load votes.";
+    }
+  );
+
+  voteListeners[gameId] = unsubscribe;
+}
+
+/* =========================================
+   SUBMIT OR CHANGE VOTE
+========================================= */
+
+async function submitVote(gameId, value, elements) {
+  if (!currentUser) {
+    elements.voteMessage.textContent =
+      "Please log in before voting.";
+    return;
+  }
+
+  elements.likeButton.disabled = true;
+  elements.dislikeButton.disabled = true;
+
+  try {
+    const voteRef = firestore.doc(
+      db,
+      "games",
+      gameId,
+      "votes",
+      currentUser.uid
+    );
+
+    const existingVote = await firestore.getDoc(voteRef);
+
+    if (
+      existingVote.exists() &&
+      existingVote.data().value === value
+    ) {
+      await firestore.deleteDoc(voteRef);
+    } else {
+      await firestore.setDoc(voteRef, {
+        value,
+        updatedAt: firestore.serverTimestamp()
+      });
+    }
+
+  } catch (error) {
+    console.error("VLAB voting error:", error);
+
+    elements.voteMessage.textContent =
+      error.code === "permission-denied"
+        ? "Voting permission denied. Check Firestore Rules."
+        : "Could not save your vote.";
+  }
+
+  elements.likeButton.disabled = false;
+  elements.dislikeButton.disabled = false;
+}
+
+/* =========================================
+   GAME PLAYER + FULLSCREEN
 ========================================= */
 
 function openGame(title, html) {
@@ -412,18 +677,23 @@ function openGame(title, html) {
   const header = document.createElement("div");
   header.className = "vlab-viewer-header";
 
-  const name = document.createElement("span");
-  name.textContent = title;
+  const name = document.createElement("div");
+  name.className = "vlab-viewer-title";
+  name.textContent = title || "VLAB Game";
+
+  const actions = document.createElement("div");
+  actions.className = "vlab-viewer-actions";
+
+  const fullscreenButton = document.createElement("button");
+  fullscreenButton.textContent = "⛶ FULLSCREEN";
 
   const close = document.createElement("button");
-  close.className = "vlab-viewer-close";
-  close.textContent = "CLOSE";
+  close.textContent = "✕ CLOSE";
 
   const frame = document.createElement("iframe");
 
-  // Only self-contained games are supported in this first version.
-  // The sandbox prevents access to VLAB's main page.
   frame.setAttribute("sandbox", "allow-scripts");
+  frame.setAttribute("allowfullscreen", "");
 
   const securityPolicy = `
     <meta http-equiv="Content-Security-Policy"
@@ -440,18 +710,37 @@ function openGame(title, html) {
 
   frame.srcdoc = securityPolicy + html;
 
-  close.addEventListener("click", () => {
+  fullscreenButton.addEventListener("click", async () => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        await frame.requestFullscreen();
+      }
+    } catch (error) {
+      console.error("Fullscreen error:", error);
+      fullscreenButton.textContent = "Fullscreen unavailable";
+    }
+  });
+
+  close.addEventListener("click", async () => {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen().catch(() => {});
+    }
+
     frame.srcdoc = "";
     viewer.remove();
   });
 
-  header.append(name, close);
+  actions.append(fullscreenButton, close);
+  header.append(name, actions);
   viewer.append(header, frame);
+
   document.body.appendChild(viewer);
 }
 
 /* =========================================
-   START
+   START VLAB
 ========================================= */
 
 initializeVLAB();
