@@ -1,0 +1,281 @@
+
+/* ================================
+   VLAB GAME HUB
+================================ */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Fredoka', sans-serif;
+  background: #ffffff;
+  color: #222222;
+  min-height: 100vh;
+}
+
+
+/* ================================
+   HEADER
+================================ */
+
+.games-header {
+  width: 100%;
+  height: 75px;
+  padding: 0 7%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid #eeeeee;
+  background: #ffffff;
+}
+
+.games-logo {
+  color: #222222;
+  font-size: 29px;
+  font-weight: 700;
+  letter-spacing: -1.5px;
+  text-decoration: none;
+}
+
+.youtube-link {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.youtube-link svg {
+  width: 100%;
+  height: 100%;
+}
+
+
+/* ================================
+   MAIN CONTENT
+================================ */
+
+.games-main {
+  width: 100%;
+  max-width: 1250px;
+  margin: auto;
+  padding: 0 25px 80px;
+}
+
+
+/* ================================
+   HERO SECTION
+================================ */
+
+.games-hero {
+  text-align: center;
+  padding: 85px 15px 90px;
+}
+
+.games-small-label {
+  color: #777777;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  margin-bottom: 20px;
+}
+
+.games-title {
+  font-size: clamp(65px, 12vw, 115px);
+  font-weight: 700;
+  line-height: 0.92;
+  letter-spacing: -5px;
+  margin-bottom: 25px;
+}
+
+.games-title span {
+  display: inline-block;
+}
+
+.games-title span:nth-child(1) {
+  color: #ff5b5b;
+}
+
+.games-title span:nth-child(2) {
+  color: #ffb52e;
+}
+
+.games-title span:nth-child(3) {
+  color: #3985ff;
+}
+
+.games-subtitle {
+  color: #777777;
+  font-size: 19px;
+  margin-bottom: 30px;
+}
+
+
+/* ================================
+   POST GAME BUTTON
+================================ */
+
+.post-game-btn {
+  border: none;
+  background: #3985ff;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 19px;
+  font-weight: 600;
+  padding: 15px 32px;
+  border-radius: 13px;
+  cursor: pointer;
+  box-shadow: 0 5px 0 #2365ce;
+  transition: transform 0.15s ease,
+              box-shadow 0.15s ease,
+              background 0.15s ease;
+}
+
+.post-game-btn span {
+  font-size: 25px;
+  margin-right: 7px;
+  vertical-align: -2px;
+}
+
+.post-game-btn:hover {
+  background: #2675f5;
+  transform: translateY(-2px);
+  box-shadow: 0 7px 0 #2365ce;
+}
+
+.post-game-btn:active {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 #2365ce;
+}
+
+
+/* ================================
+   GAME LIBRARY
+================================ */
+
+.game-library {
+  width: 100%;
+}
+
+.library-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 25px;
+}
+
+.library-heading h2 {
+  font-size: 31px;
+  font-weight: 700;
+  color: #222222;
+}
+
+.library-heading p {
+  font-size: 15px;
+  color: #888888;
+  margin-top: 4px;
+}
+
+
+/* ================================
+   GAME GRID
+================================ */
+
+.game-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(230px, 1fr)
+  );
+  gap: 22px;
+  width: 100%;
+}
+
+
+/* ================================
+   EMPTY GAME STATE
+================================ */
+
+.empty-games {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 260px;
+  border: 2px dashed #e3e3e3;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 30px 20px;
+  background: #fafafa;
+}
+
+.empty-games-icon {
+  font-size: 55px;
+  margin-bottom: 12px;
+}
+
+.empty-games h3 {
+  font-size: 23px;
+  margin-bottom: 7px;
+  color: #333333;
+}
+
+.empty-games p {
+  font-size: 15px;
+  color: #888888;
+  max-width: 300px;
+  line-height: 1.5;
+}
+
+
+/* ================================
+   MOBILE / TABLET
+================================ */
+
+@media (max-width: 600px) {
+
+  .games-header {
+    height: 65px;
+    padding: 0 20px;
+  }
+
+  .games-main {
+    padding: 0 17px 60px;
+  }
+
+  .games-hero {
+    padding: 75px 5px 75px;
+  }
+
+  .games-title {
+    font-size: clamp(55px, 15vw, 85px);
+    letter-spacing: -3px;
+  }
+
+  .games-subtitle {
+    font-size: 16px;
+    max-width: 290px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.5;
+  }
+
+  .post-game-btn {
+    font-size: 17px;
+    padding: 14px 27px;
+  }
+
+  .library-heading h2 {
+    font-size: 27px;
+  }
+
+  .game-grid {
+    grid-template-columns: 1fr;
+  }
+
+}
