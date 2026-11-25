@@ -16,6 +16,8 @@ showStatus("VLAB is starting...");
 // ==========================================
 
 const logo = document.getElementById("logo");
+const mainPage = document.getElementById("main-page");
+
 const regModal = document.getElementById("register-modal");
 const logModal = document.getElementById("login-modal");
 const onlineModal = document.getElementById("online-modal");
@@ -138,7 +140,7 @@ window.addEventListener("touchend", () => {
 });
 
 // ==========================================
-// LOGO CLICK
+// LOGO CLICK + WHITE PAGE TRANSITION
 // ==========================================
 
 logo.onpointerdown = (e) => {
@@ -179,7 +181,16 @@ window.onpointerup = (e) => {
       console.warn("Sound could not play:", e);
     }
 
+    // Start the original black-screen intro.
     document.body.classList.add("entering");
+
+    // Wait 2 seconds, then fade in the new white page.
+    window.setTimeout(() => {
+      if (mainPage) {
+        mainPage.classList.add("visible");
+        document.body.classList.add("page-open");
+      }
+    }, 2000);
   }
 };
 
