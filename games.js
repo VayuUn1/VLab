@@ -1,6 +1,7 @@
 
 /* =========================================
-   VLAB GAME HUB
+   VLAB GAME HUB 2.0
+   Search + Sorting + Player Counts
    Publishing + Likes + Dislikes + Fullscreen
 ========================================= */
 
@@ -13,7 +14,10 @@ const firebaseConfig = {
   appId: "1:942029676825:web:77cf57b966caa2d6822588"
 };
 
-// Form elements
+/* =========================================
+   PAGE ELEMENTS
+========================================= */
+
 const postGameButton = document.getElementById("post-game-btn");
 const overlay = document.getElementById("post-game-overlay");
 const closeButton = document.getElementById("close-post-game");
@@ -28,18 +32,31 @@ const coverPreview = document.getElementById("cover-preview");
 const uploadStatus = document.getElementById("upload-status");
 const submitButton = document.getElementById("submit-game-btn");
 
-// Library elements
 const gameGrid = document.getElementById("game-grid");
 const emptyGames = document.getElementById("empty-games");
+
+/* =========================================
+   FIREBASE VARIABLES
+========================================= */
 
 let auth;
 let db;
 let currentUser = null;
+let authReady = false;
 let previousCoverURL = null;
 let firestore = null;
 
+let games = [];
+
+let voteListeners = {};
+let playListeners = {};
+
+let gameLikes = {};
+let gameDislikes = {};
+let gamePlayerCounts = {};
+
 /* =========================================
-   ADD PLAYER STYLES
+   ADD VLAB 2.0 STYLES
 ========================================= */
 
 const style = document.createElement("style");
@@ -51,6 +68,74 @@ style.textContent = `
     gap: 20px;
   }
 
+  .vlab-toolbar {
+    display: flex;
+    gap: 10px;
+    margin: 15px 0 20px;
+    align-items: stretch;
+  }
+
+  .vlab-search {
+    flex: 1;
+    min-width: 0;
+    padding: 12px 14px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    font-size: 15px;
+    outline: none;
+  }
+
+  .vlab-search:focus {
+    border-color: #3985ff;
+  }
+
+  .vlab-sort-wrap {
+    position: relative;
+  }
+
+  .vlab-sort-button {
+    height: 100%;
+    min-width: 48px;
+    padding: 10px 14px;
+    border: none;
+    border-radius: 10px;
+    background: #222;
+    color: white;
+    font-size: 23px;
+    cursor: pointer;
+  }
+
+  .vlab-sort-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 1000;
+    width: 175px;
+    padding: 6px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    box-shadow: 0 8px 25px rgba(0,0,0,.15);
+  }
+
+  .vlab-sort-menu button {
+    width: 100%;
+    padding: 11px;
+    border: none;
+    border-radius: 8px;
+    background: white;
+    color: #222;
+    text-align: left;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .vlab-sort-menu button:hover,
+  .vlab-sort-menu button.active {
+    background: #eaf2ff;
+    color: #2672df;
+  }
+
   .vlab-game-card {
     background: white;
     color: #222;
@@ -58,6 +143,7 @@ style.textContent = `
     overflow: hidden;
     border: 1px solid #e8e8e8;
     box-shadow: 0 5px 18px rgba(0,0,0,.06);
+    cursor: pointer;
   }
 
   .vlab-game-cover {
@@ -92,6 +178,13 @@ style.textContent = `
     font-size: 14px;
     color: #777;
     overflow-wrap: anywhere;
+  }
+
+  .vlab-game-date,
+  .vlab-player-count {
+    font-size: 12px !important;
+    color: #888 !important;
+    margin: 6px 0;
   }
 
   .vlab-play-button {
@@ -135,6 +228,12 @@ style.textContent = `
     background: #ffeded;
     border-color: #e05252;
     color: #c0392b;
+  }
+
+  .vlab-vote-message {
+    font-size: 12px;
+    color: #777;
+    margin-top: 7px;
   }
 
   .vlab-viewer {
@@ -187,12 +286,6 @@ style.textContent = `
     background: white;
   }
 
-  .vlab-vote-message {
-    font-size: 12px;
-    color: #777;
-    margin-top: 7px;
-  }
-
   @media (max-width: 500px) {
     .vlab-viewer-header {
       padding: 7px;
@@ -202,10 +295,109 @@ style.textContent = `
       padding: 9px;
       font-size: 12px;
     }
+
+    .vlab-toolbar {
+      gap: 7px;
+    }
   }
 `;
 
 document.head.appendChild(style);
+
+/* =========================================
+   CREATE SEARCH AND SORT CONTROLS
+========================================= */
+
+let searchInput = null;
+let sortButton = null;
+let sortMenu = null;
+
+let currentSort = "newest";
+
+function createToolbar() {
+  if (!gameGrid || document.getElementById("vlab-toolbar")) {
+    return;
+  }
+
+  const toolbar = document.createElement("div");
+  toolbar.className = "vlab-toolbar";
+  toolbar.id = "vlab-toolbar";
+
+  searchInput = document.createElement("input");
+  searchInput.className = "vlab-search";
+  searchInput.type = "search";
+  searchInput.placeholder = "🔎 Search games...";
+  searchInput.setAttribute("aria-label", "Search games");
+
+  searchInput.addEventListener("input", applyFiltersAndSort);
+
+  const sortWrap = document.createElement("div");
+  sortWrap.className = "vlab-sort-wrap";
+
+  sortButton = document.createElement("button");
+  sortButton.className = "vlab-sort-button";
+  sortButton.textContent = "☰";
+  sortButton.type = "button";
+  sortButton.setAttribute("aria-label", "Sort games");
+  sortButton.setAttribute("aria-expanded", "false");
+
+  sortMenu = document.createElement("div");
+  sortMenu.className = "vlab-sort-menu";
+  sortMenu.hidden = true;
+
+  const sortOptions = [
+    { value: "newest", label: "Newest" },
+    { value: "older", label: "Older" },
+    { value: "most-liked", label: "Most liked" },
+    { value: "lowest-liked", label: "Lowest likes" }
+  ];
+
+  sortOptions.forEach(option => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = option.label;
+
+    button.addEventListener("click", () => {
+      currentSort = option.value;
+
+      sortMenu.querySelectorAll("button").forEach(item => {
+        item.classList.remove("active");
+      });
+
+      button.classList.add("active");
+      sortMenu.hidden = true;
+      sortButton.setAttribute("aria-expanded", "false");
+
+      applyFiltersAndSort();
+    });
+
+    if (option.value === currentSort) {
+      button.classList.add("active");
+    }
+
+    sortMenu.appendChild(button);
+  });
+
+  sortButton.addEventListener("click", () => {
+    sortMenu.hidden = !sortMenu.hidden;
+    sortButton.setAttribute(
+      "aria-expanded",
+      String(!sortMenu.hidden)
+    );
+  });
+
+  document.addEventListener("click", event => {
+    if (!sortWrap.contains(event.target)) {
+      sortMenu.hidden = true;
+      sortButton.setAttribute("aria-expanded", "false");
+    }
+  });
+
+  sortWrap.append(sortButton, sortMenu);
+  toolbar.append(searchInput, sortWrap);
+
+  gameGrid.parentNode.insertBefore(toolbar, gameGrid);
+}
 
 /* =========================================
    FIREBASE INITIALIZATION
@@ -245,8 +437,11 @@ async function initializeVLAB() {
       serverTimestamp: dbModule.serverTimestamp
     };
 
+    createToolbar();
+
     authModule.onAuthStateChanged(auth, user => {
       currentUser = user;
+      authReady = true;
       renderGames();
     });
 
@@ -263,6 +458,11 @@ async function initializeVLAB() {
 ========================================= */
 
 function openPostGameForm() {
+  if (!currentUser) {
+    showStatus("Please log in before publishing a game.");
+    return;
+  }
+
   if (!overlay) return;
 
   overlay.hidden = false;
@@ -294,7 +494,22 @@ document.addEventListener("keydown", event => {
 });
 
 function showStatus(message) {
-  if (uploadStatus) uploadStatus.textContent = message;
+  if (uploadStatus) {
+    uploadStatus.textContent = message;
+  }
+}
+
+/* =========================================
+   TITLE VALIDATION
+========================================= */
+
+if (titleInput) {
+  titleInput.maxLength = 80;
+  titleInput.setAttribute("pattern", "[A-Za-z0-9 ]+");
+  titleInput.setAttribute(
+    "title",
+    "Use only English letters, numbers, and spaces."
+  );
 }
 
 /* =========================================
@@ -341,7 +556,7 @@ if (coverInput && coverPreview) {
 uploadForm?.addEventListener("submit", async event => {
   event.preventDefault();
 
-  if (!currentUser) {
+  if (!authReady || !currentUser) {
     showStatus("Please log in before publishing a game.");
     return;
   }
@@ -355,6 +570,18 @@ uploadForm?.addEventListener("submit", async event => {
     return;
   }
 
+  if (!/^[A-Za-z0-9 ]+$/.test(title)) {
+    showStatus(
+      "Game titles can only contain letters, numbers, and spaces."
+    );
+    return;
+  }
+
+  if (title.length > 80) {
+    showStatus("Your game title is too long.");
+    return;
+  }
+
   if (!gameFile.name.toLowerCase().endsWith(".html")) {
     showStatus("Your game must be an HTML file.");
     return;
@@ -365,8 +592,8 @@ uploadForm?.addEventListener("submit", async event => {
     return;
   }
 
-  if (title.length > 80 || description.length > 300) {
-    showStatus("Your title or description is too long.");
+  if (description.length > 300) {
+    showStatus("Your description is too long.");
     return;
   }
 
@@ -399,7 +626,10 @@ uploadForm?.addEventListener("submit", async event => {
     showStatus("GAME PUBLISHED SUCCESSFULLY!");
 
     uploadForm.reset();
-    coverPreview.src = "default-game-cover.jpg";
+
+    if (coverPreview) {
+      coverPreview.src = "default-game-cover.jpg";
+    }
 
     if (previousCoverURL) {
       URL.revokeObjectURL(previousCoverURL);
@@ -430,9 +660,6 @@ uploadForm?.addEventListener("submit", async event => {
    LOAD GAME LIBRARY
 ========================================= */
 
-let games = [];
-let voteListeners = {};
-
 function loadGames() {
   const gamesQuery = firestore.query(
     firestore.collection(db, "games"),
@@ -451,12 +678,38 @@ function loadGames() {
     },
     error => {
       console.error("VLAB library error:", error);
+
       if (emptyGames) {
         emptyGames.hidden = false;
-        emptyGames.textContent = "Could not load games. Please refresh.";
+        emptyGames.textContent =
+          "Could not load games. Please refresh.";
       }
     }
   );
+}
+
+/* =========================================
+   DATE FORMAT
+========================================= */
+
+function formatGameDate(timestamp) {
+  if (!timestamp || typeof timestamp.toDate !== "function") {
+    return "Date unavailable";
+  }
+
+  return timestamp.toDate().toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric"
+  });
+}
+
+function getGameTime(game) {
+  if (game.createdAt && typeof game.createdAt.toMillis === "function") {
+    return game.createdAt.toMillis();
+  }
+
+  return 0;
 }
 
 /* =========================================
@@ -466,16 +719,28 @@ function loadGames() {
 function renderGames() {
   if (!gameGrid || !emptyGames || !firestore) return;
 
+  // Stop old listeners before rebuilding cards.
+  Object.values(voteListeners).forEach(unsubscribe => unsubscribe());
+  Object.values(playListeners).forEach(unsubscribe => unsubscribe());
+
+  voteListeners = {};
+  playListeners = {};
+
   gameGrid.replaceChildren();
-  emptyGames.hidden = games.length > 0;
 
   if (games.length === 0) {
-    emptyGames.textContent = "No games yet. Be the first to publish!";
+    emptyGames.hidden = false;
+    emptyGames.textContent =
+      "No games yet. Be the first to publish!";
+    return;
   }
+
+  emptyGames.hidden = true;
 
   games.forEach(game => {
     const card = document.createElement("article");
     card.className = "vlab-game-card";
+    card.dataset.gameId = game.id;
 
     const cover = document.createElement("div");
     cover.className = "vlab-game-cover";
@@ -494,12 +759,56 @@ function renderGames() {
     const author = document.createElement("p");
     author.textContent = "By " + (game.ownerName || "Player");
 
+    const date = document.createElement("p");
+    date.className = "vlab-game-date";
+    date.textContent = "📅 " + formatGameDate(game.createdAt);
+
+    const playerCount = document.createElement("p");
+    playerCount.className = "vlab-player-count";
+    playerCount.textContent = "👥 Players: 0";
+
     const playButton = document.createElement("button");
     playButton.className = "vlab-play-button";
     playButton.textContent = "PLAY GAME";
+    playButton.type = "button";
 
-    playButton.addEventListener("click", () => {
+    const launchGame = async () => {
+      if (!authReady) {
+        showStatus("Please wait a moment and try again.");
+        return;
+      }
+
+      // Guests can play, but do not count.
+      if (currentUser) {
+        try {
+          const playerRef = firestore.doc(
+            db,
+            "games",
+            game.id,
+            "plays",
+            currentUser.uid
+          );
+
+          const existingPlay = await firestore.getDoc(playerRef);
+
+          // Create only once for each registered account.
+          if (!existingPlay.exists()) {
+            await firestore.setDoc(playerRef, {
+              createdAt: firestore.serverTimestamp()
+            });
+          }
+
+        } catch (error) {
+          console.error("Player count error:", error);
+        }
+      }
+
       openGame(game.title, game.html);
+    };
+
+    playButton.addEventListener("click", event => {
+      event.stopPropagation();
+      launchGame();
     });
 
     const voteRow = document.createElement("div");
@@ -508,10 +817,12 @@ function renderGames() {
     const likeButton = document.createElement("button");
     likeButton.className = "vlab-vote-button";
     likeButton.textContent = "👍 0";
+    likeButton.type = "button";
 
     const dislikeButton = document.createElement("button");
     dislikeButton.className = "vlab-vote-button";
     dislikeButton.textContent = "👎 0";
+    dislikeButton.type = "button";
 
     const voteMessage = document.createElement("div");
     voteMessage.className = "vlab-vote-message";
@@ -519,16 +830,20 @@ function renderGames() {
     const voteRefs = {
       likeButton,
       dislikeButton,
-      voteMessage
+      voteMessage,
+      card
     };
 
     watchVotes(game.id, voteRefs);
+    watchPlayerCount(game.id, playerCount);
 
-    likeButton.addEventListener("click", () => {
+    likeButton.addEventListener("click", event => {
+      event.stopPropagation();
       submitVote(game.id, 1, voteRefs);
     });
 
-    dislikeButton.addEventListener("click", () => {
+    dislikeButton.addEventListener("click", event => {
+      event.stopPropagation();
       submitVote(game.id, -1, voteRefs);
     });
 
@@ -538,14 +853,92 @@ function renderGames() {
       title,
       description,
       author,
+      date,
+      playerCount,
       playButton,
       voteRow,
       voteMessage
     );
 
     card.append(cover, info);
+
+    // Clicking the card also launches the game.
+    card.addEventListener("click", launchGame);
+
     gameGrid.appendChild(card);
   });
+
+  applyFiltersAndSort();
+}
+
+/* =========================================
+   SEARCH + SORTING
+========================================= */
+
+function applyFiltersAndSort() {
+  if (!gameGrid) return;
+
+  const searchText = searchInput
+    ? searchInput.value.trim().toLowerCase()
+    : "";
+
+  const cards = Array.from(
+    gameGrid.querySelectorAll(".vlab-game-card")
+  );
+
+  const filteredCards = cards.filter(card => {
+    const game = games.find(
+      item => item.id === card.dataset.gameId
+    );
+
+    if (!game) return false;
+
+    const title = (game.title || "").toLowerCase();
+    const matches = title.includes(searchText);
+
+    card.hidden = !matches;
+    return matches;
+  });
+
+  filteredCards.sort((a, b) => {
+    const gameA = games.find(item => item.id === a.dataset.gameId);
+    const gameB = games.find(item => item.id === b.dataset.gameId);
+
+    if (!gameA || !gameB) return 0;
+
+    if (currentSort === "newest") {
+      return getGameTime(gameB) - getGameTime(gameA);
+    }
+
+    if (currentSort === "older") {
+      return getGameTime(gameA) - getGameTime(gameB);
+    }
+
+    if (currentSort === "most-liked") {
+      return (gameLikes[gameB.id] || 0) -
+             (gameLikes[gameA.id] || 0);
+    }
+
+    if (currentSort === "lowest-liked") {
+      return (gameLikes[gameA.id] || 0) -
+             (gameLikes[gameB.id] || 0);
+    }
+
+    return 0;
+  });
+
+  filteredCards.forEach(card => {
+    gameGrid.appendChild(card);
+  });
+
+  if (emptyGames && games.length > 0) {
+    const hasResults = filteredCards.length > 0;
+
+    emptyGames.hidden = hasResults;
+    emptyGames.textContent = hasResults
+      ? ""
+      : "No games found. Try another search.";
+  }
 }
 
 /* =========================================
@@ -581,6 +974,9 @@ function watchVotes(gameId, elements) {
         }
       });
 
+      gameLikes[gameId] = likes;
+      gameDislikes[gameId] = dislikes;
+
       elements.likeButton.textContent = "👍 " + likes;
       elements.dislikeButton.textContent = "👎 " + dislikes;
 
@@ -595,8 +991,7 @@ function watchVotes(gameId, elements) {
       );
 
       if (!currentUser) {
-        elements.voteMessage.textContent =
-          "Log in to vote.";
+        elements.voteMessage.textContent = "Log in to vote.";
       } else {
         elements.voteMessage.textContent =
           myVote === 1
@@ -605,6 +1000,9 @@ function watchVotes(gameId, elements) {
               ? "You disliked this game."
               : "You haven't voted yet.";
       }
+
+      // Update the order when likes change.
+      applyFiltersAndSort();
     },
     error => {
       console.error("Vote loading error:", error);
@@ -617,11 +1015,40 @@ function watchVotes(gameId, elements) {
 }
 
 /* =========================================
+   LIVE PLAYER COUNTS
+========================================= */
+
+function watchPlayerCount(gameId, element) {
+  const playsRef = firestore.collection(
+    db,
+    "games",
+    gameId,
+    "plays"
+  );
+
+  const unsubscribe = firestore.onSnapshot(
+    playsRef,
+    snapshot => {
+      const count = snapshot.size;
+
+      gamePlayerCounts[gameId] = count;
+      element.textContent = "👥 Players: " + count;
+    },
+    error => {
+      console.error("Player count loading error:", error);
+      element.textContent = "👥 Players: unavailable";
+    }
+  );
+
+  playListeners[gameId] = unsubscribe;
+}
+
+/* =========================================
    SUBMIT OR CHANGE VOTE
 ========================================= */
 
 async function submitVote(gameId, value, elements) {
-  if (!currentUser) {
+  if (!authReady || !currentUser) {
     elements.voteMessage.textContent =
       "Please log in before voting.";
     return;
@@ -660,10 +1087,11 @@ async function submitVote(gameId, value, elements) {
       error.code === "permission-denied"
         ? "Voting permission denied. Check Firestore Rules."
         : "Could not save your vote.";
-  }
 
-  elements.likeButton.disabled = false;
-  elements.dislikeButton.disabled = false;
+  } finally {
+    elements.likeButton.disabled = false;
+    elements.dislikeButton.disabled = false;
+  }
 }
 
 /* =========================================
