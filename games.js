@@ -1,4 +1,3 @@
-
 /* =========================================
    VLAB GAME HUB 3.0
    Multi-file games + Code Editor
@@ -556,9 +555,7 @@ if (titleInput) {
     "title",
     "Use only English letters, numbers, and spaces."
   );
-}
-
-/* =========================================
+}/* =========================================
    COVER IMAGE PREVIEW
 ========================================= */
 
@@ -1154,9 +1151,7 @@ function renderGames() {
     cover.textContent = "VLAB";
 
     const info = document.createElement("div");
-    info.className = "vlab-game-info";
-
-    const title = document.createElement("h3");
+    info.className = "vlab-game-info";    const title = document.createElement("h3");
     title.textContent = game.title || "Untitled Game";
 
     const description = document.createElement("p");
@@ -1614,13 +1609,17 @@ function openGame(title, files, legacyHTML) {
   actions.className = "vlab-viewer-actions";
 
   const fullscreenButton = document.createElement("button");
+  fullscreenButton.type = "button";
   fullscreenButton.textContent = "⛶ FULLSCREEN";
 
   const close = document.createElement("button");
+  close.type = "button";
   close.textContent = "✕ CLOSE";
 
   const frame = document.createElement("iframe");
 
+  // Keep games isolated from the main VLAB website.
+  // Do NOT add allow-same-origin to this sandbox.
   frame.setAttribute("sandbox", "allow-scripts");
   frame.setAttribute("allowfullscreen", "");
 
@@ -1637,9 +1636,64 @@ function openGame(title, files, legacyHTML) {
       base-uri 'none';">
   `;
 
-  const gameHTML = prepareGameHTML(files, legacyHTML);
+  // Sandboxed frames have an opaque origin. Accessing the browser's real
+  // localStorage can therefore throw a SecurityError. This small in-memory
+  // replacement lets games use localStorage during the current play session
+  // without granting them access to VLAB's actual website storage.
+  const storageCompatibility = `
+    <script>
+    (() => {
+      let storageAvailable = false;
 
-  frame.srcdoc = securityPolicy + gameHTML;
+      try {
+        window.localStorage.getItem("__vlab_test__");
+        storageAvailable = true;
+      } catch (error) {
+        storageAvailable = false;
+      }
+
+      if (!storageAvailable) {
+        const values = Object.create(null);
+
+        const temporaryStorage = {
+          get length() {
+            return Object.keys(values).length;
+          },
+          key(index) {
+            return Object.keys(values)[index] ?? null;
+          },
+          getItem(key) {
+            key = String(key);
+            return Object.prototype.hasOwnProperty.call(values, key)
+              ? values[key]
+              : null;
+          },
+          setItem(key, value) {
+            values[String(key)] = String(value);
+          },
+          removeItem(key) {
+            delete values[String(key)];
+          },
+          clear() {
+            Object.keys(values).forEach(key => delete values[key]);
+          }
+        };
+
+        try {
+          Object.defineProperty(window, "localStorage", {
+            configurable: true,
+            value: temporaryStorage
+          });
+        } catch (error) {
+          console.error("VLAB temporary storage setup failed:", error);
+        }
+      }
+    })();
+    <\/script>
+  `;
+
+  const gameHTML = prepareGameHTML(files, legacyHTML);
+  frame.srcdoc = securityPolicy + storageCompatibility + gameHTML;
 
   fullscreenButton.addEventListener("click", async () => {
     try {
