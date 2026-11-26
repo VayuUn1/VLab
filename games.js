@@ -1,6 +1,7 @@
 
 /* =========================================
-   VLAB GAME HUB 2.0
+   VLAB GAME HUB 3.0
+   Multi-file games + Code Editor
    Search + Sorting + Player Counts
    Publishing + Likes + Dislikes + Fullscreen
 ========================================= */
@@ -13,6 +14,8 @@ const firebaseConfig = {
   messagingSenderId: "942029676825",
   appId: "1:942029676825:web:77cf57b966caa2d6822588"
 };
+
+const MAX_GAME_BYTES = 450000;
 
 /* =========================================
    PAGE ELEMENTS
@@ -35,6 +38,32 @@ const submitButton = document.getElementById("submit-game-btn");
 const gameGrid = document.getElementById("game-grid");
 const emptyGames = document.getElementById("empty-games");
 
+/* Creation options */
+
+const uploadOptionButton = document.getElementById("upload-option-btn");
+const createOptionButton = document.getElementById("create-option-btn");
+
+const uploadFilesSection = document.getElementById("upload-files-section");
+const createFilesSection = document.getElementById("create-files-section");
+
+const gameDetailsSection = document.getElementById("game-details-section");
+const codeEditorSection = document.getElementById("code-editor-section");
+
+const openEditorButton = document.getElementById("open-editor-btn");
+const createdFilesSummary = document.getElementById("created-files-summary");
+
+const editorFileTabs = document.getElementById("editor-file-tabs");
+const addEditorFileButton = document.getElementById("add-editor-file-btn");
+const fileTypeMenu = document.getElementById("file-type-menu");
+
+const editorFilename = document.getElementById("editor-filename");
+const editorCode = document.getElementById("editor-code");
+const editorStatus = document.getElementById("editor-status");
+
+const saveEditorFileButton = document.getElementById("save-editor-file-btn");
+const confirmEditorButton = document.getElementById("confirm-editor-btn");
+const cancelEditorButton = document.getElementById("cancel-editor-btn");
+
 /* =========================================
    FIREBASE VARIABLES
 ========================================= */
@@ -43,7 +72,6 @@ let auth;
 let db;
 let currentUser = null;
 let authReady = false;
-let previousCoverURL = null;
 let firestore = null;
 
 let games = [];
@@ -56,7 +84,21 @@ let gameDislikes = {};
 let gamePlayerCounts = {};
 
 /* =========================================
-   ADD VLAB 2.0 STYLES
+   FILE EDITOR VARIABLES
+========================================= */
+
+let creationMode = "upload";
+
+let createdFiles = {
+  "index.html": ""
+};
+
+let activeFileName = "index.html";
+
+let savedEditorFiles = {};
+
+/* =========================================
+   ADD VLAB STYLES
 ========================================= */
 
 const style = document.createElement("style");
@@ -156,12 +198,6 @@ style.textContent = `
     font-size: 32px;
     font-weight: bold;
     overflow: hidden;
-  }
-
-  .vlab-game-cover img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
   }
 
   .vlab-game-info {
@@ -305,7 +341,7 @@ style.textContent = `
 document.head.appendChild(style);
 
 /* =========================================
-   CREATE SEARCH AND SORT CONTROLS
+   SEARCH AND SORT CONTROLS
 ========================================= */
 
 let searchInput = null;
@@ -345,14 +381,14 @@ function createToolbar() {
   sortMenu.className = "vlab-sort-menu";
   sortMenu.hidden = true;
 
-  const sortOptions = [
+  const options = [
     { value: "newest", label: "Newest" },
     { value: "older", label: "Older" },
     { value: "most-liked", label: "Most liked" },
     { value: "lowest-liked", label: "Lowest likes" }
   ];
 
-  sortOptions.forEach(option => {
+  options.forEach(option => {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = option.label;
@@ -454,7 +490,23 @@ async function initializeVLAB() {
 }
 
 /* =========================================
-   FORM OPEN / CLOSE
+   STATUS MESSAGE
+========================================= */
+
+function showStatus(message) {
+  if (uploadStatus) {
+    uploadStatus.textContent = message;
+  }
+}
+
+function showEditorStatus(message) {
+  if (editorStatus) {
+    editorStatus.textContent = message;
+  }
+}
+
+/* =========================================
+   OPEN / CLOSE POST WINDOW
 ========================================= */
 
 function openPostGameForm() {
@@ -466,8 +518,6 @@ function openPostGameForm() {
   if (!overlay) return;
 
   overlay.hidden = false;
-
-  if (titleInput) titleInput.focus();
 }
 
 function closePostGameForm() {
@@ -475,7 +525,9 @@ function closePostGameForm() {
 
   overlay.hidden = true;
 
-  if (postGameButton) postGameButton.focus();
+  if (postGameButton) {
+    postGameButton.focus();
+  }
 }
 
 postGameButton?.addEventListener("click", openPostGameForm);
@@ -493,12 +545,6 @@ document.addEventListener("keydown", event => {
   }
 });
 
-function showStatus(message) {
-  if (uploadStatus) {
-    uploadStatus.textContent = message;
-  }
-}
-
 /* =========================================
    TITLE VALIDATION
 ========================================= */
@@ -513,8 +559,10 @@ if (titleInput) {
 }
 
 /* =========================================
-   COVER PREVIEW
+   COVER IMAGE PREVIEW
 ========================================= */
+
+let previousCoverURL = null;
 
 if (coverInput && coverPreview) {
   coverInput.addEventListener("change", () => {
@@ -550,6 +598,317 @@ if (coverInput && coverPreview) {
 }
 
 /* =========================================
+   CREATION METHOD SWITCHING
+========================================= */
+
+function setCreationMode(mode) {
+  creationMode = mode;
+
+  const isUpload = mode === "upload";
+
+  if (uploadFilesSection) {
+    uploadFilesSection.hidden = !isUpload;
+  }
+
+  if (createFilesSection) {
+    createFilesSection.hidden = isUpload;
+  }
+
+  uploadOptionButton?.classList.toggle("active", isUpload);
+  createOptionButton?.classList.toggle("active", !isUpload);
+
+  if (gameFileInput) {
+    gameFileInput.required = isUpload;
+  }
+
+  showStatus("");
+}
+
+uploadOptionButton?.addEventListener("click", () => {
+  setCreationMode("upload");
+});
+
+createOptionButton?.addEventListener("click", () => {
+  setCreationMode("create");
+});
+
+/* =========================================
+   CODE EDITOR
+========================================= */
+
+function openCodeEditor() {
+  if (!gameDetailsSection || !codeEditorSection) return;
+
+  gameDetailsSection.hidden = true;
+  codeEditorSection.hidden = false;
+
+  if (!createdFiles["index.html"]) {
+    createdFiles["index.html"] = "";
+  }
+
+  activeFileName = activeFileName in createdFiles
+    ? activeFileName
+    : "index.html";
+
+  loadEditorFile(activeFileName);
+  renderEditorTabs();
+}
+
+function closeCodeEditor() {
+  if (!gameDetailsSection || !codeEditorSection) return;
+
+  codeEditorSection.hidden = true;
+  gameDetailsSection.hidden = false;
+
+  if (fileTypeMenu) {
+    fileTypeMenu.hidden = true;
+  }
+}
+
+openEditorButton?.addEventListener("click", openCodeEditor);
+
+/* Load a file into the editor */
+
+function loadEditorFile(filename) {
+  if (!(filename in createdFiles)) return;
+
+  activeFileName = filename;
+
+  if (editorFilename) {
+    editorFilename.value = filename;
+  }
+
+  if (editorCode) {
+    editorCode.value = createdFiles[filename];
+  }
+
+  showEditorStatus("Editing " + filename);
+  renderEditorTabs();
+}
+
+/* Check filename */
+
+function validFilename(filename) {
+  return /^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9]+)$/.test(filename);
+}
+
+function correctExtension(filename) {
+  const extension = filename.split(".").pop().toLowerCase();
+
+  return ["html", "css", "js"].includes(extension);
+}
+
+/* Save the currently edited file */
+
+function saveEditorFile() {
+  if (!editorFilename || !editorCode) return false;
+
+  const newName = editorFilename.value.trim();
+
+  if (!validFilename(newName) || !correctExtension(newName)) {
+    showEditorStatus(
+      "Use a valid filename ending in .html, .css, or .js."
+    );
+    return false;
+  }
+
+  if (
+    newName !== activeFileName &&
+    Object.prototype.hasOwnProperty.call(createdFiles, newName)
+  ) {
+    showEditorStatus("A file with that name already exists.");
+    return false;
+  }
+
+  if (
+    activeFileName === "index.html" &&
+    newName !== "index.html"
+  ) {
+    showEditorStatus("The main file must remain index.html.");
+    return false;
+  }
+
+  const content = editorCode.value;
+
+  if (newName !== activeFileName) {
+    delete createdFiles[activeFileName];
+  }
+
+  createdFiles[newName] = content;
+  activeFileName = newName;
+
+  renderEditorTabs();
+  updateCreatedFilesSummary();
+
+  showEditorStatus("Saved " + newName + "!");
+  return true;
+}
+
+saveEditorFileButton?.addEventListener("click", saveEditorFile);
+
+/* File tabs */
+
+function renderEditorTabs() {
+  if (!editorFileTabs) return;
+
+  editorFileTabs.replaceChildren();
+
+  Object.keys(createdFiles).forEach(filename => {
+    const tab = document.createElement("button");
+
+    tab.type = "button";
+    tab.className = "editor-file-tab";
+    tab.textContent = filename;
+
+    if (filename === activeFileName) {
+      tab.classList.add("active");
+    }
+
+    tab.addEventListener("click", () => {
+      if (filename === activeFileName) return;
+
+      if (!saveEditorFile()) return;
+
+      loadEditorFile(filename);
+    });
+
+    editorFileTabs.appendChild(tab);
+  });
+}
+
+/* Add file menu */
+
+addEditorFileButton?.addEventListener("click", () => {
+  if (!fileTypeMenu) return;
+
+  fileTypeMenu.hidden = !fileTypeMenu.hidden;
+});
+
+function createNewFile(type) {
+  const defaults = {
+    html: "page",
+    css: "style",
+    js: "script"
+  };
+
+  const extension = type.toLowerCase();
+
+  if (!["html", "css", "js"].includes(extension)) return;
+
+  let filename = defaults[extension] + "." + extension;
+  let counter = 2;
+
+  while (filename in createdFiles) {
+    filename = defaults[extension] + counter + "." + extension;
+    counter++;
+  }
+
+  if (!saveEditorFile()) return;
+
+  createdFiles[filename] = "";
+  loadEditorFile(filename);
+
+  if (fileTypeMenu) {
+    fileTypeMenu.hidden = true;
+  }
+
+  showEditorStatus("Created " + filename + "!");
+}
+
+fileTypeMenu?.querySelectorAll("[data-file-type]").forEach(button => {
+  button.addEventListener("click", () => {
+    createNewFile(button.dataset.fileType);
+  });
+});
+
+/* Confirm editor */
+
+confirmEditorButton?.addEventListener("click", () => {
+  if (!saveEditorFile()) return;
+
+  if (!createdFiles["index.html"]?.trim()) {
+    showEditorStatus("Your index.html file cannot be empty.");
+    return;
+  }
+
+  closeCodeEditor();
+  updateCreatedFilesSummary();
+
+  showStatus("Files confirmed! You can now publish your game.");
+});
+
+/* Cancel editor */
+
+cancelEditorButton?.addEventListener("click", () => {
+  closeCodeEditor();
+});
+
+/* Summary */
+
+function updateCreatedFilesSummary() {
+  if (!createdFilesSummary) return;
+
+  const names = Object.keys(createdFiles);
+
+  createdFilesSummary.textContent =
+    names.length + " file(s): " + names.join(", ");
+}
+
+/* =========================================
+   READ UPLOADED FILES
+========================================= */
+
+async function readUploadedFiles() {
+  const selectedFiles = Array.from(gameFileInput.files || []);
+
+  if (selectedFiles.length === 0) {
+    throw new Error("Choose your game files first.");
+  }
+
+  const files = {};
+
+  for (const file of selectedFiles) {
+    const filename = file.name;
+
+    if (!validFilename(filename)) {
+      throw new Error("Invalid filename: " + filename);
+    }
+
+    if (!correctExtension(filename)) {
+      throw new Error("Only HTML, CSS, and JS files are supported.");
+    }
+
+    if (Object.prototype.hasOwnProperty.call(files, filename)) {
+      throw new Error("Duplicate filename: " + filename);
+    }
+
+    files[filename] = await file.text();
+  }
+
+  if (!files["index.html"]) {
+    throw new Error("Your main HTML file must be named index.html.");
+  }
+
+  return files;
+}
+
+/* =========================================
+   CHECK TOTAL GAME SIZE
+========================================= */
+
+function getTotalFileSize(files) {
+  const encoder = new TextEncoder();
+  let total = 0;
+
+  for (const [filename, content] of Object.entries(files)) {
+    total += encoder.encode(filename).length;
+    total += encoder.encode(content).length;
+  }
+
+  return total;
+}
+
+/* =========================================
    PUBLISH GAME
 ========================================= */
 
@@ -561,12 +920,16 @@ uploadForm?.addEventListener("submit", async event => {
     return;
   }
 
+  if (codeEditorSection && !codeEditorSection.hidden) {
+    showStatus("Please confirm your editor files first.");
+    return;
+  }
+
   const title = titleInput.value.trim();
   const description = descriptionInput.value.trim();
-  const gameFile = gameFileInput.files[0];
 
-  if (!title || !gameFile) {
-    showStatus("Enter a title and choose an HTML file.");
+  if (!title) {
+    showStatus("Enter a game title.");
     return;
   }
 
@@ -582,16 +945,6 @@ uploadForm?.addEventListener("submit", async event => {
     return;
   }
 
-  if (!gameFile.name.toLowerCase().endsWith(".html")) {
-    showStatus("Your game must be an HTML file.");
-    return;
-  }
-
-  if (gameFile.size > 450000) {
-    showStatus("Maximum HTML file size is 450 KB.");
-    return;
-  }
-
   if (description.length > 300) {
     showStatus("Your description is too long.");
     return;
@@ -601,13 +954,29 @@ uploadForm?.addEventListener("submit", async event => {
   submitButton.textContent = "PUBLISHING...";
 
   try {
-    showStatus("Reading your game...");
+    showStatus("Preparing game files...");
 
-    const html = await gameFile.text();
+    let files;
 
-    if (!html.trim()) {
-      throw new Error("Your HTML file is empty.");
+    if (creationMode === "upload") {
+      files = await readUploadedFiles();
+    } else {
+      files = { ...createdFiles };
+
+      if (!files["index.html"]?.trim()) {
+        throw new Error("Your index.html file is missing or empty.");
+      }
     }
+
+    const totalSize = getTotalFileSize(files);
+
+    if (totalSize > MAX_GAME_BYTES) {
+      throw new Error(
+        "Your game files are too large. Maximum total size is 450 KB."
+      );
+    }
+
+    const html = files["index.html"];
 
     showStatus("Publishing game...");
 
@@ -617,6 +986,7 @@ uploadForm?.addEventListener("submit", async event => {
         title,
         description,
         html,
+        files,
         ownerUid: currentUser.uid,
         ownerName: currentUser.displayName || "Player",
         createdAt: firestore.serverTimestamp()
@@ -625,16 +995,7 @@ uploadForm?.addEventListener("submit", async event => {
 
     showStatus("GAME PUBLISHED SUCCESSFULLY!");
 
-    uploadForm.reset();
-
-    if (coverPreview) {
-      coverPreview.src = "default-game-cover.jpg";
-    }
-
-    if (previousCoverURL) {
-      URL.revokeObjectURL(previousCoverURL);
-      previousCoverURL = null;
-    }
+    resetPostForm();
 
     setTimeout(() => {
       closePostGameForm();
@@ -645,7 +1006,9 @@ uploadForm?.addEventListener("submit", async event => {
     console.error("VLAB publishing error:", error);
 
     if (error.code === "permission-denied") {
-      showStatus("Permission denied. Check Firestore Rules.");
+      showStatus(
+        "Permission denied. We need to update Firestore Rules."
+      );
     } else {
       showStatus("Publishing failed: " + error.message);
     }
@@ -655,6 +1018,51 @@ uploadForm?.addEventListener("submit", async event => {
     submitButton.textContent = "PUBLISH GAME";
   }
 });
+
+/* =========================================
+   RESET POST FORM
+========================================= */
+
+function resetPostForm() {
+  uploadForm.reset();
+
+  createdFiles = {
+    "index.html": ""
+  };
+
+  activeFileName = "index.html";
+  creationMode = "upload";
+
+  setCreationMode("upload");
+
+  if (gameDetailsSection) {
+    gameDetailsSection.hidden = false;
+  }
+
+  if (codeEditorSection) {
+    codeEditorSection.hidden = true;
+  }
+
+  if (coverPreview) {
+    coverPreview.src = "default-game-cover.jpg";
+  }
+
+  if (previousCoverURL) {
+    URL.revokeObjectURL(previousCoverURL);
+    previousCoverURL = null;
+  }
+
+  if (editorFileTabs) {
+    editorFileTabs.replaceChildren();
+  }
+
+  if (editorCode) {
+    editorCode.value = "";
+  }
+
+  updateCreatedFilesSummary();
+  showEditorStatus("");
+}
 
 /* =========================================
    LOAD GAME LIBRARY
@@ -719,7 +1127,6 @@ function getGameTime(game) {
 function renderGames() {
   if (!gameGrid || !emptyGames || !firestore) return;
 
-  // Stop old listeners before rebuilding cards.
   Object.values(voteListeners).forEach(unsubscribe => unsubscribe());
   Object.values(playListeners).forEach(unsubscribe => unsubscribe());
 
@@ -778,7 +1185,6 @@ function renderGames() {
         return;
       }
 
-      // Guests can play, but do not count.
       if (currentUser) {
         try {
           const playerRef = firestore.doc(
@@ -791,7 +1197,6 @@ function renderGames() {
 
           const existingPlay = await firestore.getDoc(playerRef);
 
-          // Create only once for each registered account.
           if (!existingPlay.exists()) {
             await firestore.setDoc(playerRef, {
               createdAt: firestore.serverTimestamp()
@@ -803,7 +1208,9 @@ function renderGames() {
         }
       }
 
-      openGame(game.title, game.html);
+      const files = game.files || null;
+
+      openGame(game.title, files, game.html);
     };
 
     playButton.addEventListener("click", event => {
@@ -862,7 +1269,6 @@ function renderGames() {
 
     card.append(cover, info);
 
-    // Clicking the card also launches the game.
     card.addEventListener("click", launchGame);
 
     gameGrid.appendChild(card);
@@ -980,15 +1386,8 @@ function watchVotes(gameId, elements) {
       elements.likeButton.textContent = "👍 " + likes;
       elements.dislikeButton.textContent = "👎 " + dislikes;
 
-      elements.likeButton.classList.toggle(
-        "liked",
-        myVote === 1
-      );
-
-      elements.dislikeButton.classList.toggle(
-        "disliked",
-        myVote === -1
-      );
+      elements.likeButton.classList.toggle("liked", myVote === 1);
+      elements.dislikeButton.classList.toggle("disliked", myVote === -1);
 
       if (!currentUser) {
         elements.voteMessage.textContent = "Log in to vote.";
@@ -1001,13 +1400,11 @@ function watchVotes(gameId, elements) {
               : "You haven't voted yet.";
       }
 
-      // Update the order when likes change.
       applyFiltersAndSort();
     },
     error => {
       console.error("Vote loading error:", error);
-      elements.voteMessage.textContent =
-        "Could not load votes.";
+      elements.voteMessage.textContent = "Could not load votes.";
     }
   );
 
@@ -1095,10 +1492,114 @@ async function submitVote(gameId, value, elements) {
 }
 
 /* =========================================
+   PREPARE MULTI-FILE GAME HTML
+========================================= */
+
+function escapeClosingTag(content, tagName) {
+  const expression = new RegExp("</" + tagName, "gi");
+  return content.replace(expression, "<\\/" + tagName);
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function prepareGameHTML(files, legacyHTML) {
+  if (!files || typeof files !== "object") {
+    return legacyHTML || "";
+  }
+
+  let html = files["index.html"] || legacyHTML || "";
+
+  if (!html.trim()) {
+    return "";
+  }
+
+  const cssFiles = [];
+  const jsFiles = [];
+
+  Object.entries(files).forEach(([filename, content]) => {
+    const extension = filename.split(".").pop().toLowerCase();
+
+    if (extension === "css") {
+      cssFiles.push({ filename, content });
+    }
+
+    if (extension === "js") {
+      jsFiles.push({ filename, content });
+    }
+  });
+
+  /* Remove local CSS links because CSS is embedded below. */
+
+  cssFiles.forEach(file => {
+    const escapedName = escapeRegExp(file.filename);
+
+    const linkPattern = new RegExp(
+      "<link\\b(?=[^>]*\\bhref\\s*=\\s*['\"](?:\\.\\/)?"
+      + escapedName
+      + "['\"])[^>]*>",
+      "gi"
+    );
+
+    html = html.replace(linkPattern, "");
+  });
+
+  /* Remove local JavaScript script tags. */
+
+  jsFiles.forEach(file => {
+    const escapedName = escapeRegExp(file.filename);
+
+    const scriptPattern = new RegExp(
+      "<script\\b(?=[^>]*\\bsrc\\s*=\\s*['\"](?:\\.\\/)?"
+      + escapedName
+      + "['\"])[^>]*>\\s*<\\/script\\s*>",
+      "gi"
+    );
+
+    html = html.replace(scriptPattern, "");
+  });
+
+  /* Add all CSS files. */
+
+  if (cssFiles.length > 0) {
+    const css = cssFiles
+      .map(file => escapeClosingTag(file.content, "style"))
+      .join("\n");
+
+    const styleTag = "<style>\n" + css + "\n</style>";
+
+    if (/<\/head\s*>/i.test(html)) {
+      html = html.replace(/<\/head\s*>/i, styleTag + "\n</head>");
+    } else {
+      html = styleTag + html;
+    }
+  }
+
+  /* Add all JavaScript files. */
+
+  if (jsFiles.length > 0) {
+    const js = jsFiles
+      .map(file => escapeClosingTag(file.content, "script"))
+      .join("\n");
+
+    const scriptTag = "<script>\n" + js + "\n</script>";
+
+    if (/<\/body\s*>/i.test(html)) {
+      html = html.replace(/<\/body\s*>/i, scriptTag + "\n</body>");
+    } else {
+      html += scriptTag;
+    }
+  }
+
+  return html;
+}
+
+/* =========================================
    GAME PLAYER + FULLSCREEN
 ========================================= */
 
-function openGame(title, html) {
+function openGame(title, files, legacyHTML) {
   const viewer = document.createElement("div");
   viewer.className = "vlab-viewer";
 
@@ -1127,7 +1628,7 @@ function openGame(title, html) {
     <meta http-equiv="Content-Security-Policy"
       content="default-src 'none';
       script-src 'unsafe-inline' blob:;
-      style-src 'unsafe-inline';
+      style-src 'unsafe-inline' blob:;
       img-src data: blob:;
       media-src data: blob:;
       font-src data:;
@@ -1136,7 +1637,9 @@ function openGame(title, html) {
       base-uri 'none';">
   `;
 
-  frame.srcdoc = securityPolicy + html;
+  const gameHTML = prepareGameHTML(files, legacyHTML);
+
+  frame.srcdoc = securityPolicy + gameHTML;
 
   fullscreenButton.addEventListener("click", async () => {
     try {
@@ -1171,4 +1674,5 @@ function openGame(title, html) {
    START VLAB
 ========================================= */
 
+updateCreatedFilesSummary();
 initializeVLAB();
