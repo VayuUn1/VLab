@@ -23,9 +23,10 @@ const onlineModal = document.getElementById("online-modal");
 
 const registerForm = document.getElementById("register-form");
 const loginForm = document.getElementById("login-form");
-
 const regError = document.getElementById("reg-error");
 const loginError = document.getElementById("login-error");
+
+const guestButton = document.getElementById("continue-guest");
 
 let audioCtx = null;
 let isEntering = false;
@@ -46,6 +47,60 @@ let currentPlayerName = "Player";
 let latestDocs = [];
 
 let firebaseFunctions = null;
+
+// ==========================================
+// BUTTON CLICK SOUND
+// ==========================================
+
+function playButtonSound() {
+  try {
+    if (!audioCtx) {
+      audioCtx = new (
+        window.AudioContext || window.webkitAudioContext
+      )();
+    }
+
+    if (audioCtx.state === "suspended") {
+      audioCtx.resume();
+    }
+
+    const now = audioCtx.currentTime;
+    const oscillator = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(520, now);
+    oscillator.frequency.exponentialRampToValueAtTime(
+      850,
+      now + 0.07
+    );
+
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(
+      0.12,
+      now + 0.01
+    );
+    gain.gain.exponentialRampToValueAtTime(
+      0.0001,
+      now + 0.13
+    );
+
+    oscillator.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    oscillator.start(now);
+    oscillator.stop(now + 0.14);
+  } catch (error) {
+    console.warn("Button sound could not play:", error);
+  }
+}
+
+// Play sound for homepage buttons.
+document.addEventListener("click", (event) => {
+  if (event.target.closest("button")) {
+    playButtonSound();
+  }
+});
 
 // ==========================================
 // PREVENT FORM URL SUBMISSION
@@ -102,6 +157,65 @@ document.querySelectorAll("[data-close]").forEach((btn) => {
     onlineModal.classList.remove("open");
   };
 });
+
+// ==========================================
+// ENTER VLAB
+// ==========================================
+
+function startVlabEntry() {
+  if (isEntering) return;
+
+  isEntering = true;
+  logo.classList.remove("active");
+
+  try {
+    playSound();
+  } catch (error) {
+    console.warn("Sound could not play:", error);
+  }
+
+  document.body.classList.add("entering");
+
+  window.setTimeout(() => {
+    window.location.href = "games.html";
+  }, 2000);
+}
+
+// ==========================================
+// CONTINUE AS GUEST
+// ==========================================
+
+if (guestButton) {
+  guestButton.addEventListener("click", async () => {
+    if (isEntering) return;
+
+    if (!firebaseReady) {
+      showStatus("Please wait! VLAB is connecting...");
+      return;
+    }
+
+    guestButton.disabled = true;
+
+    try {
+      // Sign out any existing account.
+      if (auth && auth.currentUser) {
+        await firebaseFunctions.signOut(auth);
+      }
+
+      // Mark this browser session as a guest.
+      sessionStorage.setItem("vlabGuestMode", "true");
+
+      // Enter the Games page.
+      startVlabEntry();
+
+    } catch (error) {
+      console.error("Guest mode error:", error);
+
+      showStatus("Could not enter guest mode. Please try again.");
+      guestButton.disabled = false;
+    }
+  });
+}
 
 // ==========================================
 // LOGO TOUCH EFFECT
@@ -171,22 +285,8 @@ window.onpointerup = (e) => {
       return;
     }
 
-    isEntering = true;
-    logo.classList.remove("active");
-
-    try {
-      playSound();
-    } catch (e) {
-      console.warn("Sound could not play:", e);
-    }
-
-    // Start the original black-screen intro.
-    document.body.classList.add("entering");
-
-    // Keep the original 2-second intro, then open Games.
-    window.setTimeout(() => {
-      window.location.href = "games.html";
-    }, 2000);
+    sessionStorage.removeItem("vlabGuestMode");
+    startVlabEntry();
   }
 };
 
@@ -215,7 +315,6 @@ function playSound() {
 
   const wet = audioCtx.createGain();
   wet.gain.value = 0.35;
-
   delay.connect(fb);
   fb.connect(delay);
   delay.connect(wet);
@@ -359,8 +458,10 @@ async function startFirebase() {
       if (user) {
         isAuth = true;
         currentUid = user.uid;
-
         currentPlayerName = user.displayName || "Player";
+
+        // A signed-in account is not a guest.
+        sessionStorage.removeItem("vlabGuestMode");
 
         document.body.classList.add("authenticated");
 
@@ -408,6 +509,7 @@ async function startFirebase() {
         }
 
         await signOut(auth);
+        sessionStorage.removeItem("vlabGuestMode");
         location.reload();
 
       } catch (e) {
@@ -570,6 +672,7 @@ async function handleLogin() {
   const name = document.getElementById("login-name").value.trim();
   const email = document.getElementById("login-email").value.trim();
   const pass = document.getElementById("login-pass").value;
+
   const btn = document.getElementById("login-submit");
 
   btn.disabled = true;
