@@ -95,7 +95,6 @@ function playButtonSound() {
   }
 }
 
-// Play sound for homepage buttons.
 document.addEventListener("click", (event) => {
   if (event.target.closest("button")) {
     playButtonSound();
@@ -197,15 +196,31 @@ if (guestButton) {
     guestButton.disabled = true;
 
     try {
-      // Sign out any existing account.
+      // Remove the signed-in account from the online list
+      // BEFORE signing out.
       if (auth && auth.currentUser) {
+        const previousUid = auth.currentUser.uid;
+
+        clearInterval(heartbeat);
+        heartbeat = null;
+
+        try {
+          await firebaseFunctions.deleteDoc(
+            firebaseFunctions.doc(db, "online", previousUid)
+          );
+        } catch (presenceError) {
+          console.warn(
+            "Could not immediately remove previous online status:",
+            presenceError
+          );
+        }
+
         await firebaseFunctions.signOut(auth);
       }
 
       // Mark this browser session as a guest.
       sessionStorage.setItem("vlabGuestMode", "true");
 
-      // Enter the Games page.
       startVlabEntry();
 
     } catch (error) {
@@ -460,7 +475,6 @@ async function startFirebase() {
         currentUid = user.uid;
         currentPlayerName = user.displayName || "Player";
 
-        // A signed-in account is not a guest.
         sessionStorage.removeItem("vlabGuestMode");
 
         document.body.classList.add("authenticated");
