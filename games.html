@@ -1,19 +1,166 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VLAB - Games</title>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="games.css">
+
+  <style>
+    [hidden] {
+      display: none !important;
+    }
+
+    .creation-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 18px 0;
+    }
+
+    .creation-option {
+      padding: 18px 12px;
+      border: 2px solid #ddd;
+      border-radius: 12px;
+      background: white;
+      font-family: inherit;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .creation-option:hover {
+      border-color: #777;
+    }
+
+    .creation-option.active {
+      border-color: #6c63ff;
+      background: #f2f0ff;
+    }
+
+    .editor-panel {
+      margin-top: 15px;
+    }
+
+    .editor-toolbar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 12px 0;
+    }
+
+    .editor-toolbar button,
+    .editor-actions button,
+    .file-type-menu button {
+      padding: 10px 14px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: white;
+      font-family: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    #editor-file-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin: 12px 0;
+    }
+
+    .editor-file-tab {
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 7px;
+      background: #eee;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .editor-file-tab.active {
+      background: #dedaff;
+      border-color: #6c63ff;
+    }
+
+    #editor-filename {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px;
+      margin: 8px 0;
+      border: 1px solid #ccc;
+      border-radius: 7px;
+      font-family: inherit;
+    }
+
+    #editor-code {
+      display: block;
+      width: 100%;
+      min-height: 300px;
+      box-sizing: border-box;
+      padding: 14px;
+      resize: vertical;
+      border: 1px solid #444;
+      border-radius: 8px;
+      background: #171717;
+      color: #eee;
+      font-family: monospace;
+      font-size: 14px;
+      line-height: 1.5;
+      tab-size: 2;
+    }
+
+    .file-type-menu {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 10px 0;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 9px;
+      background: #f7f7f7;
+    }
+
+    .editor-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      margin-top: 14px;
+    }
+
+    .editor-actions button.primary {
+      background: #6c63ff;
+      color: white;
+      border-color: #6c63ff;
+    }
+
+    #editor-status {
+      min-height: 20px;
+      font-size: 14px;
+    }
+
+    @media (max-width: 450px) {
+      .creation-options {
+        grid-template-columns: 1fr;
+      }
+
+      #editor-code {
+        min-height: 250px;
+      }
+    }
+  </style>
 </head>
+
 <body>
 
   <header class="header">
     <a href="index.html" class="logo">VLAB</a>
-    <a href="https://youtube.com/@vayuuniverse?si=395iofnKy6U71OLx" target="_blank" rel="noopener noreferrer">YouTube</a>
+    <a href="https://youtube.com/@vayuuniverse?si=395iofnKy6U71OLx"
+       target="_blank"
+       rel="noopener noreferrer">YouTube</a>
   </header>
 
   <main>
@@ -29,46 +176,238 @@
     </section>
   </main>
 
+  <!-- POST GAME WINDOW -->
   <div id="post-game-overlay" class="post-game-overlay" hidden>
-    <div class="post-game-popup" role="dialog" aria-modal="true" aria-labelledby="upload-title">
 
-      <button id="close-post-game" type="button" aria-label="Close">✕</button>
+    <div class="post-game-popup"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="upload-title">
+
+      <button id="close-post-game"
+              type="button"
+              aria-label="Close">✕</button>
 
       <h2 id="upload-title">POST YOUR GAME</h2>
 
       <form id="post-game-form">
 
-        <div class="form-group">
-          <label for="game-title">Game Title *</label>
-          <input id="game-title" type="text" maxlength="60" required placeholder="Enter game title">
-        </div>
+        <!-- GAME DETAILS -->
+        <div id="game-details-section">
 
-        <div class="form-group">
-          <label for="game-description">Description (Optional)</label>
-          <textarea id="game-description" maxlength="300" placeholder="Describe your game"></textarea>
-        </div>
-
-        <div class="form-group">
-          <label for="game-file">Game File (.html) *</label>
-          <input id="game-file" type="file" accept=".html,text/html" required>
-        </div>
-
-        <div class="form-group">
-          <label for="game-cover">Cover Image (Optional)</label>
-          <input id="game-cover" type="file" accept="image/png,image/jpeg,image/webp">
-          <div class="cover-preview-container">
-            <img id="cover-preview" src="default-game-cover.jpg" alt="VLAB game cover">
+          <div class="form-group">
+            <label for="game-title">Game Title *</label>
+            <input
+              id="game-title"
+              type="text"
+              maxlength="60"
+              required
+              placeholder="Enter game title">
           </div>
+
+          <div class="form-group">
+            <label for="game-description">Description (Optional)</label>
+            <textarea
+              id="game-description"
+              maxlength="300"
+              placeholder="Describe your game"></textarea>
+          </div>
+
+          <!-- CHOOSE CREATION METHOD -->
+          <div class="form-group">
+            <label>Choose how to add your game *</label>
+
+            <div class="creation-options">
+
+              <button
+                id="upload-option-btn"
+                class="creation-option active"
+                type="button">
+                <span>📁</span><br>
+                Upload from device
+              </button>
+
+              <button
+                id="create-option-btn"
+                class="creation-option"
+                type="button">
+                <span>💻</span><br>
+                Create files
+              </button>
+
+            </div>
+          </div>
+
+          <!-- UPLOAD FROM DEVICE -->
+          <div id="upload-files-section">
+
+            <div class="form-group">
+              <label for="game-file">Game Files *</label>
+
+              <input
+                id="game-file"
+                type="file"
+                accept=".html,.htm,.css,.js,text/html,text/css,text/javascript"
+                multiple>
+
+              <p>
+                Select your game files. Make sure your main HTML file
+                is named <strong>index.html</strong>.
+              </p>
+            </div>
+
+          </div>
+
+          <!-- CREATE FILES -->
+          <div id="create-files-section" hidden>
+
+            <p>
+              Create your game using HTML, CSS, and JavaScript.
+            </p>
+
+            <button
+              id="open-editor-btn"
+              type="button">
+              ✏️ OPEN CODE EDITOR
+            </button>
+
+            <p id="created-files-summary">
+              No files created yet.
+            </p>
+
+          </div>
+
+          <!-- COVER IMAGE -->
+          <div class="form-group">
+            <label for="game-cover">Cover Image (Optional)</label>
+
+            <input
+              id="game-cover"
+              type="file"
+              accept="image/png,image/jpeg,image/webp">
+
+            <div class="cover-preview-container">
+              <img
+                id="cover-preview"
+                src="default-game-cover.jpg"
+                alt="VLAB game cover">
+            </div>
+          </div>
+
+          <p id="upload-status" role="status" aria-live="polite"></p>
+
+          <button
+            id="submit-game-btn"
+            type="submit">
+            PUBLISH GAME
+          </button>
+
         </div>
 
-        <p id="upload-status" role="status" aria-live="polite"></p>
+        <!-- CODE EDITOR -->
+        <div id="code-editor-section" class="editor-panel" hidden>
 
-        <button id="submit-game-btn" type="submit">PUBLISH GAME</button>
+          <h2>VLAB CODE EDITOR</h2>
+
+          <p>
+            Your main game file should be named
+            <strong>index.html</strong>.
+          </p>
+
+          <!-- FILE TABS -->
+          <div id="editor-file-tabs"></div>
+
+          <!-- ADD FILE -->
+          <div class="editor-toolbar">
+
+            <button
+              id="add-editor-file-btn"
+              type="button">
+              + Add File
+            </button>
+
+          </div>
+
+          <!-- FILE TYPE MENU -->
+          <div id="file-type-menu" class="file-type-menu" hidden>
+
+            <span>Choose file type:</span>
+
+            <button type="button" data-file-type="html">
+              HTML
+            </button>
+
+            <button type="button" data-file-type="css">
+              CSS
+            </button>
+
+            <button type="button" data-file-type="js">
+              JavaScript
+            </button>
+
+          </div>
+
+          <!-- CURRENT FILE -->
+          <div class="form-group">
+
+            <label for="editor-filename">File Name</label>
+
+            <input
+              id="editor-filename"
+              type="text"
+              placeholder="index.html"
+              autocomplete="off">
+
+          </div>
+
+          <div class="form-group">
+
+            <label for="editor-code">Code</label>
+
+            <textarea
+              id="editor-code"
+              spellcheck="false"
+              autocapitalize="off"
+              autocomplete="off"
+              autocorrect="off"
+              placeholder="Write or paste your code here..."></textarea>
+
+          </div>
+
+          <p id="editor-status" role="status" aria-live="polite"></p>
+
+          <!-- SAVE AND CONFIRM -->
+          <div class="editor-actions">
+
+            <button
+              id="save-editor-file-btn"
+              type="button">
+              💾 SAVE
+            </button>
+
+            <button
+              id="confirm-editor-btn"
+              class="primary"
+              type="button">
+              ✓ CONFIRM
+            </button>
+
+            <button
+              id="cancel-editor-btn"
+              type="button">
+              CANCEL
+            </button>
+
+          </div>
+
+        </div>
 
       </form>
+
     </div>
   </div>
 
   <script src="games.js" defer></script>
+
 </body>
 </html>
